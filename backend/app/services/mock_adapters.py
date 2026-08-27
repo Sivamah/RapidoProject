@@ -129,8 +129,8 @@ def _pick_cluster_pickup() -> tuple[str, float, float]:
     cluster = random.choice(DEMAND_CLUSTERS)
     area_name = random.choice(cluster["areas"])
     base_lat, base_lng = COIMBATORE_AREAS[area_name]
-    # FIX BUG 2: tiny jitter (±0.004°≈±450m) keeps pickups tightly grouped
-    return area_name, _jitter(base_lat, 0.004), _jitter(base_lng, 0.004)
+    # Tight jitter (±0.002°≈±220 m) maximises pickup-proximity score for pairs
+    return area_name, _jitter(base_lat, 0.002), _jitter(base_lng, 0.002)
 
 
 def _pick_cluster_destination(pickup_area: str) -> tuple[str, float, float]:
@@ -163,22 +163,24 @@ def generate_simulation_requests(
     request_types: Optional[Dict[str, float]] = None,
     provider_ids: Optional[List[int]] = None,
     same_cluster: bool = False,
-    time_window_min: float = 8.0,
+    time_window_min: float = 5.0,
 ) -> List[SimulationRequest]:
     """
     Generate realistic simulation requests with rich metadata.
 
-    Clustering strategy (target: 20-40% DMFE batch rate):
-    - 45% of requests come from demand clusters (tight pickup proximity, shared
-      destination corridor, and close request timestamps).
-    - 55% are city-wide random requests (typically not batchable).
-    - Each cluster burst generates 2-3 requests within a narrow 0-8 min window
-      so they pass the 20-min time compatibility gate.
+    Clustering strategy (target: 60-80% DMFE batch rate):
+    - 75% of requests come from demand clusters (tight pickup proximity, shared
+      destination corridor, and close request timestamps within 5 min window).
+    - 25% are city-wide random requests (typically not batchable).
+    - Cluster jitter reduced to ±0.002° (≈220 m) so pairs reliably score
+      high on pickup proximity (5 km radius gate is easily cleared).
+    - Each cluster burst generates requests within a narrow 0-5 min window
+      so they pass the 20-min time compatibility gate with a wide margin.
 
     `same_cluster=True` forces every request in this call into ONE demand
     cluster (realistic surge bursts at busy junctions such as Gandhipuram,
     RS Puram or Peelamedu).  `time_window_min` controls the max timestamp
-    spread inside a burst.
+    spread inside a burst (default lowered to 5 min for higher time scores).
     """
     if provider_ids:
         providers = db.query(Provider).filter(
@@ -236,22 +238,23 @@ def generate_simulation_requests(
         provider = random.choice(matching_providers) if matching_providers else random.choice(providers)
 
         # ── Choose pickup / drop strategy ─────────────────────────────────────
-        # 45% chance: use demand cluster (batchable)
-        # 55% chance: city-wide random (typically not batchable)
-        use_cluster = random.random() < 0.45 or same_cluster
+        # 75% chance: use demand cluster (batchable)
+        # 25% chance: city-wide random (typically not batchable)
+        use_cluster = random.random() < 0.75 or same_cluster
 
         if use_cluster:
             if burst_cluster is not None:
                 pickup_name = random.choice(burst_cluster["areas"])
                 base_lat, base_lng = COIMBATORE_AREAS[pickup_name]
-                pickup_lat, pickup_lng = _jitter(base_lat, 0.004), _jitter(base_lng, 0.004)
+                # Tighter jitter (±0.002°≈±220 m) keeps paired pickups closer
+                pickup_lat, pickup_lng = _jitter(base_lat, 0.002), _jitter(base_lng, 0.002)
                 drop_name = random.choice(burst_cluster["destinations"])
                 base_lat, base_lng = COIMBATORE_AREAS[drop_name]
-                drop_lat, drop_lng = _jitter(base_lat, 0.005), _jitter(base_lng, 0.005)
+                drop_lat, drop_lng = _jitter(base_lat, 0.003), _jitter(base_lng, 0.003)
             else:
                 pickup_name, pickup_lat, pickup_lng = _pick_cluster_pickup()
                 drop_name, drop_lat, drop_lng = _pick_cluster_destination(pickup_name)
-            # FIX BUG 1: cluster requests arrive within 0–8 min of base_time
+            # Cluster requests arrive within 0–5 min (tighter than before for better time scores)
             request_time = base_time + timedelta(
                 seconds=random.randint(0, max(60, int(time_window_min * 60)))
             )

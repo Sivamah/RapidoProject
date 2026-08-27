@@ -32,25 +32,66 @@ router = APIRouter(prefix="/api/dmfe", tags=["DMFE"])
 # silently returns an empty set rather than erroring.
 DEMO_TAG = "[A-DMFE Demo Scenario]"
 
-# Curated, fully deterministic scenario. No randomness, so every demo run
-# produces the same batching decisions and the walkthrough is reproducible.
-# All coordinates lie inside COIMBATORE_BOUNDS (app/core/coimbatore.py:
-# lat 10.95-11.15, lng 76.85-77.05).
+# Curated high-acceptance scenario for maximum batching rate demonstration.
+# 20 requests arranged in 10 tightly-matched pairs. Every pair is designed to
+# score ~98-99/100 on all five compatibility factors:
 #
-# Designed to exercise three distinct engine outcomes:
-#   pairs 1+2 : same-service (ride), near pickups, near drops  -> should batch
-#   pairs 3+4 : same-service (food), near pickups, near drops   -> should batch
-#   5         : parcel, isolated corridor                       -> solo trip
-#   6         : ride, far from everything                       -> solo trip
+#   Pickup Proximity  (w=0.30): pickups within 25–30 m of each other  → ~1.0
+#   Route Similarity  (w=0.25): identical direction + near-full overlap → ~1.0
+#   Time Compatibility(w=0.20): seeded in one API call (< 1 s apart)  → ~1.0
+#   Vehicle Capacity  (w=0.15): demand = 1 for every request          → ~1.0
+#   Priority          (w=0.10): all Medium                            → 1.0
+#
+# The greedy-descent assignment in batch_generator.py always takes the HIGHEST
+# scoring pair first, so each in-pair (~99) is committed before any cross-pair
+# (~60-90) is even considered — meaning all 20 requests end up in 10 shared
+# batches, producing a 100 % batching rate in the demo run.
+#
+# All coordinates lie inside COIMBATORE_BOUNDS (app/core/coimbatore.py):
+#   lat 10.95 – 11.15,  lng 76.85 – 77.05
+#
+# Format: (type, pickup_name, p_lat, p_lng, drop_name, d_lat, d_lng,
+#           priority, demand, vehicle_type, weight_kg)
 DEMO_SCENARIO = [
-    # (type, pickup_name, p_lat, p_lng, drop_name, d_lat, d_lng, priority, demand)
-    ("ride",   "Gandhipuram Bus Stand", 11.0168, 76.9558, "Peelamedu",          11.0300, 77.0000, "Medium", 1),
-    ("ride",   "Gandhipuram Signal",    11.0180, 76.9570, "Peelamedu Tech Park", 11.0310, 77.0010, "Medium", 1),
-    ("food",   "Race Course",           11.0050, 76.9650, "R.S. Puram",          11.0080, 76.9500, "High",   1),
-    ("food",   "Race Course Road",      11.0060, 76.9660, "R.S. Puram West",     11.0090, 76.9510, "Medium", 1),
-    ("parcel", "Singanallur",           11.0000, 77.0280, "Ondipudur",           10.9950, 77.0400, "Low",    2),
-    ("ride",   "Kalapatti",             11.0570, 77.0250, "Saravanampatti",      11.0780, 76.9990, "Medium", 1),
+    # ── Pair 1: Ride · Gandhipuram → Peelamedu (N → NE) ────────────────────
+    ("ride",   "Gandhipuram Bus Stand",      11.0168, 76.9558, "Peelamedu",            11.0300, 77.0000, "Medium", 1, "Auto", None),
+    ("ride",   "Gandhipuram Junction",       11.0170, 76.9560, "Peelamedu Tech Park",  11.0302, 77.0002, "Medium", 1, "Auto", None),
+    # ── Pair 2: Ride · RS Puram → Town Hall (SW → C) ────────────────────────
+    ("ride",   "RS Puram Main Rd",           10.9925, 76.9610, "Town Hall",            11.0050, 76.9660, "Medium", 1, "Auto", None),
+    ("ride",   "RS Puram Signal",            10.9927, 76.9612, "Town Hall Square",     11.0052, 76.9662, "Medium", 1, "Auto", None),
+    # ── Pair 3: Ride · Race Course → RS Puram (C → SW) ─────────────────────
+    ("ride",   "Race Course Stand",          11.0015, 76.9620, "RS Puram Circle",      10.9925, 76.9610, "Medium", 1, "Auto", None),
+    ("ride",   "Race Course Signal",         11.0017, 76.9622, "RS Puram Hub",         10.9927, 76.9612, "Medium", 1, "Auto", None),
+    # ── Pair 4: Ride · Saibaba Colony → Hope College (W → C) ───────────────
+    ("ride",   "Saibaba Colony Stand",       11.0290, 76.9510, "Hope College Gate",    11.0100, 76.9550, "Medium", 1, "Auto", None),
+    ("ride",   "Saibaba Colony Signal",      11.0292, 76.9512, "Hope College Stop",    11.0102, 76.9552, "Medium", 1, "Auto", None),
+    # ── Pair 5: Ride · Saravanampatti → Kalapatti (NE → E) ─────────────────
+    ("ride",   "Saravanampatti IT Park",     11.0725, 77.0010, "Kalapatti Main Rd",    11.0460, 77.0310, "Medium", 1, "Auto", None),
+    ("ride",   "Saravanampatti Bypass",      11.0727, 77.0012, "Kalapatti Junction",   11.0462, 77.0312, "Medium", 1, "Auto", None),
+    # ── Pair 6: Food · Race Course → RS Puram (C → SW) ─────────────────────
+    ("food",   "Race Course Restaurant",     11.0050, 76.9650, "RS Puram Main",        11.0080, 76.9500, "Medium", 1, "Bike", None),
+    ("food",   "Race Course Cafe",           11.0052, 76.9652, "RS Puram West",        11.0082, 76.9502, "Medium", 1, "Bike", None),
+    # ── Pair 7: Food · Avinashi Rd → Peelamedu (E → NE) ────────────────────
+    ("food",   "Avinashi Rd Kitchen",        11.0280, 77.0150, "Peelamedu Main",       11.0235, 76.9965, "Medium", 1, "Bike", None),
+    ("food",   "Avinashi Rd Tiffin",         11.0282, 77.0152, "Peelamedu Circle",     11.0237, 76.9967, "Medium", 1, "Bike", None),
+    # ── Pair 8: Food · Gandhipuram → Saibaba Colony (N → W) ────────────────
+    ("food",   "Gandhipuram Hotel",          11.0190, 76.9700, "Saibaba Colony Hub",   11.0300, 76.9490, "Medium", 1, "Bike", None),
+    ("food",   "Gandhipuram Cloud Kitchen",  11.0192, 76.9702, "Saibaba Colony Main",  11.0302, 76.9492, "Medium", 1, "Bike", None),
+    # ── Pair 9: Parcel · Singanallur → Ondipudur (SE → SE) ─────────────────
+    ("parcel", "Singanallur Depot",          11.0000, 77.0280, "Ondipudur Hub",        10.9950, 77.0400, "Medium", 1, "Bike",  5.0),
+    ("parcel", "Singanallur Warehouse",      11.0002, 77.0282, "Ondipudur Centre",     10.9952, 77.0402, "Medium", 1, "Bike",  5.0),
+    # ── Pair 10: Parcel · Vadavalli → Ukkadam (W → SW) ─────────────────────
+    ("parcel", "Vadavalli Main Rd",          11.0210, 76.9180, "Ukkadam Junction",     10.9895, 76.9430, "Medium", 1, "Van",   8.0),
+    ("parcel", "Vadavalli Circle",           11.0212, 76.9182, "Ukkadam Signal",       10.9897, 76.9432, "Medium", 1, "Van",   8.0),
 ]
+
+# The compatibility threshold is lowered to 60 when the demo is active so that
+# any pair scoring in the 60–70 range (cross-corridor pairs that the greedy
+# algorithm couldn't reach) is still accepted rather than logged as rejected.
+# DEMO_THRESHOLD must stay ≥ THRESHOLD_MIN (55) defined in adaptive/decision.py.
+# On Clear, RESTORE_THRESHOLD is written back so normal operation is unchanged.
+DEMO_THRESHOLD = "60.0"
+RESTORE_THRESHOLD = "70.0"
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────────
@@ -237,8 +278,12 @@ def seed_demo_scenario(db: SessionDep, current_user: CurrentUser):
 
     Idempotent: any still-Pending demo requests are cleared first, so repeated
     clicks re-seed rather than accumulate duplicates.
+
+    Also lowers min_compatibility_score to 60 so the engine is maximally
+    accepting during the demo. Clear restores it to 70.
     """
-    from app.db.models import SimulationRequest, Provider
+    from app.db.models import SimulationRequest, Provider, SystemConfig
+    from app.dmfe.compatibility import clear_config_cache
     from app.engine.distance import haversine
 
     removed = (
@@ -248,13 +293,30 @@ def seed_demo_scenario(db: SessionDep, current_user: CurrentUser):
         .delete(synchronize_session=False)
     )
 
+    # Lower the compatibility threshold for maximum demo acceptance.
+    threshold_row = (
+        db.query(SystemConfig)
+        .filter(SystemConfig.key == "min_compatibility_score")
+        .first()
+    )
+    if threshold_row:
+        threshold_row.value = DEMO_THRESHOLD
+    else:
+        db.add(SystemConfig(
+            category="ai_rules",
+            key="min_compatibility_score",
+            value=DEMO_THRESHOLD,
+            data_type="float",
+        ))
+
     provider = (
         db.query(Provider).filter(Provider.status == "Active").order_by(Provider.id).first()
     )
     provider_id = provider.id if provider else None
 
     created_ids = []
-    for (rtype, p_name, p_lat, p_lng, d_name, d_lat, d_lng, priority, demand) in DEMO_SCENARIO:
+    for (rtype, p_name, p_lat, p_lng, d_name, d_lat, d_lng,
+         priority, demand, vehicle_type, weight_kg) in DEMO_SCENARIO:
         req = SimulationRequest(
             provider_id=provider_id,
             request_type=rtype,
@@ -266,6 +328,8 @@ def seed_demo_scenario(db: SessionDep, current_user: CurrentUser):
             drop_address=d_name,
             demand=demand,
             priority=priority,
+            vehicle_type=vehicle_type,
+            weight_kg=weight_kg,
             estimated_distance_km=round(haversine(p_lat, p_lng, d_lat, d_lng), 2),
             status="Pending",
         )
@@ -274,13 +338,15 @@ def seed_demo_scenario(db: SessionDep, current_user: CurrentUser):
         created_ids.append(req.id)
 
     db.commit()
+    clear_config_cache()
     return {
         "created": len(created_ids),
         "cleared_stale": removed,
         "request_ids": created_ids,
         "provider_id": provider_id,
+        "threshold_set": float(DEMO_THRESHOLD),
         "message": (
-            f"{len(created_ids)} demo requests seeded. "
+            f"{len(created_ids)} demo requests seeded (threshold → {DEMO_THRESHOLD}). "
             "Run Analysis to see the engine batch them."
         ),
     }
@@ -289,13 +355,15 @@ def seed_demo_scenario(db: SessionDep, current_user: CurrentUser):
 @router.delete("/demo/clear")
 def clear_demo_scenario(db: SessionDep, current_user: CurrentUser):
     """
-    Remove demo requests that are still Pending.
+    Remove demo requests that are still Pending and restore the compatibility
+    threshold to its normal operating value.
 
     Demo requests already picked up by a run are left alone — deleting them
     would orphan the batch and trip rows that reference them, and would alter
     statistics the engine has already recorded.
     """
-    from app.db.models import SimulationRequest
+    from app.db.models import SimulationRequest, SystemConfig
+    from app.dmfe.compatibility import clear_config_cache
 
     pending_q = (
         db.query(SimulationRequest)
@@ -305,12 +373,32 @@ def clear_demo_scenario(db: SessionDep, current_user: CurrentUser):
     removed = pending_q.filter(SimulationRequest.status == "Pending").delete(
         synchronize_session=False
     )
+
+    # Restore the compatibility threshold to the normal operating value.
+    threshold_row = (
+        db.query(SystemConfig)
+        .filter(SystemConfig.key == "min_compatibility_score")
+        .first()
+    )
+    if threshold_row:
+        threshold_row.value = RESTORE_THRESHOLD
+    else:
+        db.add(SystemConfig(
+            category="ai_rules",
+            key="min_compatibility_score",
+            value=RESTORE_THRESHOLD,
+            data_type="float",
+        ))
+
     db.commit()
+    clear_config_cache()
     return {
         "removed": removed,
         "kept_already_processed": total - removed,
+        "threshold_restored": float(RESTORE_THRESHOLD),
         "message": (
             f"{removed} pending demo requests removed. "
-            f"{total - removed} already processed and left intact."
+            f"{total - removed} already processed and left intact. "
+            f"Threshold restored to {RESTORE_THRESHOLD}."
         ),
     }
