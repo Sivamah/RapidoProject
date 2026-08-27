@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         if self.DATABASE_URL:
+            if self.DATABASE_URL.startswith("postgres://"):
+                return self.DATABASE_URL.replace("postgres://", "postgresql://", 1)
             return self.DATABASE_URL
         if self.POSTGRES_USER and self.POSTGRES_PASSWORD and self.POSTGRES_DB:
             return (
