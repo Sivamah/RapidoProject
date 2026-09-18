@@ -48,10 +48,10 @@ export default function NotificationCenter() {
     }
   }, [search, filters]);
 
-  // Polling: 2.5s
+  // Polling: 8 s — notifications are event-driven, not a real-time sensor feed.
   useEffect(() => {
     fetchData();
-    pollRef.current = setInterval(() => { if (document.visibilityState === 'visible') fetchData(); }, 2500);
+    pollRef.current = setInterval(() => { if (document.visibilityState === 'visible') fetchData(); }, 8000);
     return () => clearInterval(pollRef.current);
   }, [fetchData]);
 

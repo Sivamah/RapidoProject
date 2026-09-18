@@ -1,0 +1,47 @@
+﻿file_path,classification,reason,confidence
+frontend/src/pages/DashboardOverview.jsx,DEFINITELY DEAD,Not routed in App.jsx not imported by any file,100
+frontend/src/components/map/MapFilters.jsx,DEFINITELY DEAD,Never imported by any component or page,100
+frontend/src/components/dashboard/DashboardKpis.jsx,DEFINITELY DEAD,Only imported by dead DashboardOverview.jsx,100
+frontend/src/components/dashboard/AIEngineStatus.jsx,DEFINITELY DEAD,Only imported by dead DashboardOverview.jsx,100
+frontend/src/components/dashboard/DashboardSummary.jsx,DEFINITELY DEAD,Only imported by dead DashboardOverview.jsx,100
+frontend/src/components/dashboard/DashboardCharts.jsx,DEFINITELY DEAD,Only imported by dead DashboardOverview.jsx,100
+backend/app/engine/optimizer.py,DEFINITELY DEAD,AIOrchestrator legacy sole route returns 410 zero active imports,100
+backend/app/engine/explainability.py,DEFINITELY DEAD,Zero imports anywhere in codebase,100
+scripts/scratch_analysis_r1.py,DEFINITELY DEAD,Unreferenced untracked scratch script,100
+scripts/scratch_baseline_r1.py,DEFINITELY DEAD,Unreferenced untracked scratch script,100
+scripts/scratch_r1_3.py,DEFINITELY DEAD,Unreferenced untracked scratch script,100
+scripts/scratch_r1_4.py,DEFINITELY DEAD,Unreferenced untracked scratch script,100
+scripts/scratch_r1_5.py,DEFINITELY DEAD,Unreferenced untracked scratch script,100
+scripts/scratch_per_service_r1.py,DEFINITELY DEAD,Unreferenced untracked scratch script,100
+scripts/scratch_repro.py,DEFINITELY DEAD,Unreferenced untracked scratch script,100
+assets/payload.json,DEFINITELY DEAD,Zero references anywhere in codebase,100
+scripts/generate_final_docs.py,PROBABLY DEAD,Standalone DOCX generator untracked zero imports,95
+scripts/generate_final_docs_11.py,PROBABLY DEAD,Variant DOCX generator untracked zero imports,95
+scripts/generate_final_resp.py,PROBABLY DEAD,Response DOCX generator untracked zero imports,95
+scripts/scratch_docx.py,PROBABLY DEAD,DOCX reader utility untracked zero imports,95
+scripts/scratch_tex.py,PROBABLY DEAD,LaTeX generator untracked zero imports,95
+scripts/scratch_read_resp.py,PROBABLY DEAD,Response text extractor untracked zero imports,95
+scripts/scratch_read_camera.py,PROBABLY DEAD,Camera-ready text extractor untracked zero imports,95
+assets/doc_text.txt,PROBABLY DEAD,Scratch output file zero references,95
+assets/doc_text2.txt,PROBABLY DEAD,Scratch output file zero references,95
+assets/tables.txt,PROBABLY DEAD,Scratch output file zero references,95
+assets/tables_all.txt,PROBABLY DEAD,Scratch output file zero references,95
+assets/completion_context.txt,PROBABLY DEAD,Scratch output file zero references,95
+assets/scratch_read_docx.txt,DUPLICATE,Output of dead script scratch_docx.py,95
+assets/scratch_read_camera_ready.txt,DUPLICATE,Output of dead script scratch_read_camera.py,95
+assets/scratch_read_responses.txt,DUPLICATE,Output of dead script scratch_read_resp.py,95
+assets/commit_message.txt,LEGACY,Only in .gitignore and archived docs no code references,90
+assets/storage_audit.json,LEGACY,Only referenced in docs prose,85
+assets/dmfe_dev_root_copy.db,LEGACY,Orphan DB copy code always uses backend/dmfe_dev.db,90
+other/.fuse_hidden0000004800000001,ARTIFACT,NFS/FUSE temp artifact safe to delete per docs,100
+other/backend_.fuse_hidden0000003300000001,ARTIFACT,NFS/FUSE temp artifact safe to delete per docs,100
+other/backend_.fuse_hidden0000003500000002,ARTIFACT,NFS/FUSE temp artifact safe to delete per docs,100
+other/backend_.fuse_hidden0000003600000003,ARTIFACT,NFS/FUSE temp artifact safe to delete per docs,100
+other/backend_.fuse_hidden0000003700000004,ARTIFACT,NFS/FUSE temp artifact safe to delete per docs,100
+other/backend_server_out.log,ARTIFACT,Unreferenced server log,100
+other/backend_server_err.log,ARTIFACT,Unreferenced server log,100
+other/backend_qa_test.db-shm,ARTIFACT,SQLite temp file no direct references,100
+other/backend_qa_test.db-wal,ARTIFACT,SQLite temp file,100
+other/eval.db-wal,ARTIFACT,SQLite temp file standard artifact,100
+other/eval.db-shm,ARTIFACT,SQLite temp file standard artifact,100
+backend/seed_users.py,UNCERTAIN,Standalone seeding script may be manually invoked,60

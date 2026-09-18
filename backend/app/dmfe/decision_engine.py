@@ -365,6 +365,38 @@ def _make_batch_row(
     )
 
 
+def _find_existing_live_batch(db: Session, request_ids: List[int]) -> Optional[DMFEBatch]:
+    """
+    Return an already-persisted, still-live (not yet Dispatched) DMFEBatch
+    for this exact set of request IDs, if one exists.
+
+    /api/dmfe/analyze never advances SimulationRequest.status, so the same
+    unchanged pending queue is re-evaluated on every call. Without this
+    check, run_analysis() would insert a brand-new duplicate DMFEBatch row
+    (same batch_code, same request_ids) every time it's re-run before the
+    batch is dispatched -- inflating /statistics and /history. We dedupe on
+    the sorted set of request IDs rather than giving /analyze its own
+    status lane, since request status is also read by the separate
+    dmfe_engine dispatch pipeline (driver_selection.py) and must not change.
+    """
+    target = sorted(request_ids)
+    candidates = (
+        db.query(DMFEBatch)
+        .filter(DMFEBatch.status != "Dispatched")
+        .order_by(DMFEBatch.id.desc())
+        .limit(500)
+        .all()
+    )
+    for b in candidates:
+        try:
+            ids = sorted(json.loads(b.request_ids_json or "[]"))
+        except (ValueError, TypeError):
+            continue
+        if ids == target:
+            return b
+    return None
+
+
 class DecisionEngine:
     """
     Applies the compatibility threshold to each CandidateGroup,
@@ -620,31 +652,45 @@ class DecisionEngine:
                 selector_rules=selector_rules,
             )
             is_shared = decision == "Compatible"
+            group_request_ids = [r.id for r in cg.requests]
             batch_code = f"BATCH-{cg.requests[0].id:04d}-{cg.requests[-1].id:04d}"
 
-            # Persist
-            batch = _make_batch_row(
-                batch_code=batch_code,
-                request_ids=[r.id for r in cg.requests],
-                compatibility_score=score,
-                decision=decision,
-                reasons=decision_reasons,
-                factor_scores=cg.result.factor_scores,
-                factor_details=cg.result.factor_details,
-                status=status,
-                estimated_delay_min=cg.result.estimated_delay_min,
-            )
-            db.add(batch)
-            db.flush()  # get batch.id before commit
-            run_batch_ids.append(batch.id)
+            # De-dupe: skip inserting a new row if an identical, still-live
+            # batch for this exact request set was already persisted by an
+            # earlier /analyze call on this same unchanged pending queue.
+            existing = _find_existing_live_batch(db, group_request_ids)
+            if existing is not None:
+                batch = existing
+                batch_dict = candidate_batch_dict(
+                    cg, existing.batch_code,
+                    persisted=True,
+                    batch_id=existing.id,
+                    decision=existing.decision,
+                    status=existing.status,
+                )
+            else:
+                batch = _make_batch_row(
+                    batch_code=batch_code,
+                    request_ids=group_request_ids,
+                    compatibility_score=score,
+                    decision=decision,
+                    reasons=decision_reasons,
+                    factor_scores=cg.result.factor_scores,
+                    factor_details=cg.result.factor_details,
+                    status=status,
+                    estimated_delay_min=cg.result.estimated_delay_min,
+                )
+                db.add(batch)
+                db.flush()  # get batch.id before commit
+                run_batch_ids.append(batch.id)
 
-            batch_dict = candidate_batch_dict(
-                cg, batch_code,
-                persisted=True,
-                batch_id=batch.id,
-                decision=decision,
-                status=status,
-            )
+                batch_dict = candidate_batch_dict(
+                    cg, batch_code,
+                    persisted=True,
+                    batch_id=batch.id,
+                    decision=decision,
+                    status=status,
+                )
 
             if is_shared:
                 compatible_batches.append(batch_dict)
@@ -655,6 +701,8 @@ class DecisionEngine:
         # not be batched (each request is processed exactly once per run).
         unmatched_ids = [r.id for r in pending if r.id not in matched_ids]
         for rid in unmatched_ids:
+            if _find_existing_live_batch(db, [rid]) is not None:
+                continue  # already persisted as an Individual trip by an earlier /analyze call
             batch = _make_batch_row(
                 batch_code=f"TRIP-{rid:04d}",
                 request_ids=[rid],

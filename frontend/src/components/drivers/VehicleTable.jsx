@@ -11,11 +11,12 @@ const STATUS_STYLE = {
 export default function VehicleTable({ vehicles = [], providers = [], drivers = [], onAdd, onEdit, onDelete }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editVehicle, setEditVehicle] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
     vehicle_type: 'Bike',
-    registration_number: 'TN-37-AB-1001',
+    registration_number: '',
     capacity: 1,
     fuel_type: 'Petrol',
     provider_id: '',
@@ -25,9 +26,12 @@ export default function VehicleTable({ vehicles = [], providers = [], drivers = 
 
   const handleOpenAdd = () => {
     setFormData({
-      name: 'Rapido Bike GT',
+      name: '',
       vehicle_type: 'Bike',
-      registration_number: `TN-37-X-${Math.floor(1000 + Math.random() * 9000)}`,
+      // Left blank deliberately: this used to pre-fill a random
+      // `TN-37-X-####` plate, which meant one careless save wrote a fabricated
+      // registration into the fleet. The operator types the real one.
+      registration_number: '',
       capacity: 1,
       fuel_type: 'Petrol',
       provider_id: providers[0]?.id || '',
@@ -51,26 +55,38 @@ export default function VehicleTable({ vehicles = [], providers = [], drivers = 
     });
   };
 
-  const handleSubmitAdd = (e) => {
+  const handleSubmitAdd = async (e) => {
     e.preventDefault();
-    onAdd({
-      ...formData,
-      provider_id: parseInt(formData.provider_id),
-      capacity: parseInt(formData.capacity),
-      current_driver_id: formData.current_driver_id ? parseInt(formData.current_driver_id) : null,
-    });
-    setShowAddModal(false);
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await onAdd({
+        ...formData,
+        provider_id: parseInt(formData.provider_id),
+        capacity: parseInt(formData.capacity),
+        current_driver_id: formData.current_driver_id ? parseInt(formData.current_driver_id) : null,
+      });
+    } finally {
+      setSubmitting(false);
+      setShowAddModal(false);
+    }
   };
 
-  const handleSubmitEdit = (e) => {
+  const handleSubmitEdit = async (e) => {
     e.preventDefault();
-    onEdit(editVehicle.id, {
-      ...formData,
-      provider_id: formData.provider_id ? parseInt(formData.provider_id) : undefined,
-      capacity: parseInt(formData.capacity),
-      current_driver_id: formData.current_driver_id ? parseInt(formData.current_driver_id) : null,
-    });
-    setEditVehicle(null);
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await onEdit(editVehicle.id, {
+        ...formData,
+        provider_id: formData.provider_id ? parseInt(formData.provider_id) : undefined,
+        capacity: parseInt(formData.capacity),
+        current_driver_id: formData.current_driver_id ? parseInt(formData.current_driver_id) : null,
+      });
+    } finally {
+      setSubmitting(false);
+      setEditVehicle(null);
+    }
   };
 
   return (
@@ -260,9 +276,10 @@ export default function VehicleTable({ vehicles = [], providers = [], drivers = 
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg"
+                  disabled={submitting}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Save Vehicle
+                  {submitting ? 'Saving…' : 'Save Vehicle'}
                 </button>
               </div>
             </form>
@@ -316,9 +333,10 @@ export default function VehicleTable({ vehicles = [], providers = [], drivers = 
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg"
+                  disabled={submitting}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Update Vehicle
+                  {submitting ? 'Updating…' : 'Update Vehicle'}
                 </button>
               </div>
             </form>

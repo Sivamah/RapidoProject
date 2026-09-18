@@ -1,11 +1,6 @@
 import React from 'react';
-import { Bike, Utensils, Package, MapPin, X } from 'lucide-react';
-
-const TYPE_META = {
-  ride: { label: 'Ride', color: 'bg-blue-600', textColor: 'text-blue-400', Icon: Bike },
-  food: { label: 'Food', color: 'bg-orange-600', textColor: 'text-orange-400', Icon: Utensils },
-  parcel: { label: 'Parcel', color: 'bg-green-600', textColor: 'text-green-400', Icon: Package },
-};
+import { MapPin, Flag, X } from 'lucide-react';
+import { requestTypeMeta } from '../../utils/requestSemantics';
 
 const PRIORITY_CLASSES = {
   High: 'text-red-400 bg-red-500/10 border-red-500/30',
@@ -16,8 +11,7 @@ const PRIORITY_CLASSES = {
 export default function MarkerPopup({ request, onClose }) {
   if (!request) return null;
 
-  const reqType = request.request_type?.toLowerCase() || 'ride';
-  const meta = TYPE_META[reqType] || TYPE_META.ride;
+  const meta = requestTypeMeta(request.request_type);
   const { Icon } = meta;
 
   const createdTimeStr = request.created_at
@@ -29,7 +23,7 @@ export default function MarkerPopup({ request, onClose }) {
       {/* Header */}
       <div className="flex items-center justify-between border-b border-gray-700 pb-2">
         <div className="flex items-center gap-2">
-          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-bold text-white ${meta.color}`}>
+          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded border text-xs font-bold ${meta.chipClass}`}>
             <Icon className="h-3 w-3" />
             {meta.label}
           </span>
@@ -61,7 +55,7 @@ export default function MarkerPopup({ request, onClose }) {
         </div>
 
         <div className="flex items-start gap-1.5 border-t border-gray-800 pt-1.5">
-          <MapPin className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />
+          <Flag className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />
           <div className="min-w-0">
             <span className="text-gray-400 text-[10px] uppercase font-bold block">Destination</span>
             <span className="text-gray-200 font-medium truncate block">{request.drop_address || '—'}</span>
@@ -73,11 +67,15 @@ export default function MarkerPopup({ request, onClose }) {
       <div className="grid grid-cols-3 gap-1.5 text-center text-xs border-t border-gray-700 pt-2 text-gray-300">
         <div>
           <span className="text-[10px] text-gray-400 block">Distance</span>
-          <span className="font-semibold text-indigo-300">{request.estimated_distance_km?.toFixed(1)} km</span>
+          <span className="font-semibold text-indigo-300">
+            {Number.isFinite(request.estimated_distance_km) ? `${request.estimated_distance_km.toFixed(1)} km` : '—'}
+          </span>
         </div>
         <div>
           <span className="text-[10px] text-gray-400 block">Est. Time</span>
-          <span className="font-semibold text-cyan-300">~{request.estimated_time_min?.toFixed(0)} m</span>
+          <span className="font-semibold text-cyan-300">
+            {Number.isFinite(request.estimated_time_min) ? `~${request.estimated_time_min.toFixed(0)} m` : '—'}
+          </span>
         </div>
         <div>
           <span className="text-[10px] text-gray-400 block">Created</span>

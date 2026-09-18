@@ -14,4 +14,5 @@ build/
 .vite/
 .fuse_hidden*
 commit_message.txt
+temp/
 

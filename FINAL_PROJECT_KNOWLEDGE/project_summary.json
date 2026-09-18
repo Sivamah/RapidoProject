@@ -1,0 +1,179 @@
+{
+  "project": {
+    "name": "A-DMFE (Adaptive Dynamic Multi-Service Feasibility Engine)",
+    "type": "final-year research/academic project",
+    "description": "Admin dashboard + backend engine simulating and dispatching ride/food/parcel requests via 5-factor compatibility scoring, adaptive batching, OR-Tools route optimization, and an explainable-AI (XAI) decision layer, paired with an IEEE-paper-track reviewer-evidence evaluation harness."
+  },
+  "architecture": {
+    "pipeline": "Request -> Compatibility scoring -> Batching (static or adaptive) -> Decision engine -> OR-Tools route optimization -> Driver/vehicle selection -> Trip -> Analytics -> XAI explanation -> Live map highlight",
+    "orchestrator": "backend/app/dmfe/pipeline.py::PipelineRunner.run()",
+    "trigger_paths": [
+      "manual: dmfe_v2.py /analyze (used by frontend 'Run Analysis' button)",
+      "manual: dmfe_engine.py per-stage endpoints (implemented, tested, NOT called by frontend)",
+      "automatic: services/simulation_service.py background SimulationEngine tick (the actual production dispatch trigger)"
+    ],
+    "detail_file": "FINAL_ARCHITECTURE.md"
+  },
+  "backend": {
+    "framework": "FastAPI + SQLAlchemy + SQLite",
+    "routers_mounted": 12,
+    "protected_core_files": [
+      "backend/app/dmfe/compatibility.py",
+      "backend/app/dmfe/scoring.py",
+      "backend/app/dmfe/score_engine.py",
+      "backend/app/dmfe/decision_engine.py",
+      "backend/app/dmfe/optimizer.py",
+      "backend/app/dmfe/driver_selection.py",
+      "backend/app/dmfe/pipeline.py",
+      "backend/app/dmfe/batch_generator.py",
+      "backend/app/dmfe/serializers.py",
+      "backend/app/dmfe/models.py",
+      "backend/app/dmfe/adaptive/*.py",
+      "backend/app/db/models.py",
+      "backend/app/core/security.py"
+    ],
+    "optimization_findings": {
+      "critical": 0,
+      "high": 3,
+      "medium": 5,
+      "low": 3,
+      "total": 11,
+      "source_file": "BACKEND_OPTIMIZATION.md"
+    }
+  },
+  "frontend": {
+    "framework": "React 19 + Vite + Tailwind CSS 4",
+    "pages_total": 14,
+    "pages_broken_missing_imports": 6,
+    "app_builds": false,
+    "app_build_blocker": "App.jsx imports frontend/src/components/ui/AnimatedBackground, which does not exist anywhere in the repository",
+    "optimization_findings": {
+      "critical": 7,
+      "high": 2,
+      "medium": 4,
+      "low": 3,
+      "total": 16,
+      "source_file": "FRONTEND_OPTIMIZATION.md"
+    },
+    "automated_tests_found": 0
+  },
+  "integration": {
+    "features_traced": 15,
+    "working": 10,
+    "partial": 5,
+    "broken": 0,
+    "unverifiable": 0,
+    "source_file": "FRONTEND_BACKEND_CONNECTION_MATRIX.md"
+  },
+  "algorithms": {
+    "compatibility_scoring": "5-factor model (pickup proximity, route/destination similarity, time-window compatibility, vehicle capacity fit, priority) in backend/app/dmfe/compatibility.py",
+    "batching": "greedy disjoint pairing (static mode) or context/learning-adjusted thresholds (adaptive mode) in backend/app/dmfe/batch_generator.py",
+    "route_optimization": "OR-Tools Pickup-and-Delivery-Problem solver in backend/app/dmfe/optimizer.py, single-request fast path bypasses solver",
+    "adaptive_layer": "backend/app/dmfe/adaptive/* - context awareness, persisted learning state, adaptive weight generation, adaptive thresholds"
+  },
+  "experiments": {
+    "reviewer_points_covered": [
+      "R1.1",
+      "R1.3",
+      "R1.4",
+      "R1.5",
+      "R2.1"
+    ],
+    "status": {
+      "R1.1": "verified - script, result, and docs all consistent",
+      "R1.3": "verified - both sub-experiments (exact matching + joint optimization) consistent",
+      "R1.4": "MISMATCH - result file (single N=60 run) does not match current multi-workload script or REVIEWER_EVIDENCE_REPORT.md's cited table",
+      "R1.5": "verified - script, result, and docs all consistent",
+      "R2.1": "MISMATCH - same pattern as R1.4"
+    },
+    "limitations_verbatim": {
+      "R1.1": "synthetic robustness sweep",
+      "R1.3": "pairing sub-problem only",
+      "R1.5": "simulation, not human study",
+      "R2.1": "max_allowed_delay_min configuration sweep",
+      "R1.4": "post-hoc per-service-type re-aggregation of an existing pipeline metric, not an independent new experiment"
+    },
+    "source_file": "REVIEWER_AUDIT.md"
+  },
+  "tests": {
+    "backend_test_files": 11,
+    "backend_reported_pass_rate": "73/0 fail (per docs/reports/FINAL_CLEANUP_REPORT.md, NOT independently re-executed this audit)",
+    "backend_untested_areas": [
+      "authentication",
+      "dashboard/analytics aggregate queries",
+      "notification CRUD"
+    ],
+    "frontend_test_files": 0,
+    "build_and_lint_executed_this_audit": false,
+    "reason": "on-device shell (device_bash) unavailable for the full session - documented platform-level issue, not project-specific"
+  },
+  "performance": {
+    "backend_findings": {
+      "critical": 0,
+      "high": 3,
+      "medium": 5,
+      "low": 3
+    },
+    "frontend_findings": {
+      "critical": 7,
+      "high": 2,
+      "medium": 4,
+      "low": 3
+    }
+  },
+  "known_issues": [
+    "P0: App.jsx imports nonexistent components/ui/AnimatedBackground.jsx - application fails to build",
+    "P0: 6 of 14 pages import entirely missing component directories (drivers, config, most of analytics/dmfe/notifications/playback)",
+    "P0: REVIEWER_EVIDENCE_REPORT.md cites R1.4/R2.1 multi-workload data not present anywhere in the repository",
+    "P1: adaptive-mode ContextAwarenessEngine and LearningEngine state rebuilt/re-read redundantly per DMFE run",
+    "P1: XAI explanation generation re-queries the same partner pool per request",
+    "P1: two pages (currently unreachable due to P0) have no-debounce search inputs",
+    "P2: several backend list/config endpoints scan full tables or commit per-row unnecessarily",
+    "P2: 9 confirmed-dead files, 2 duplicates, 1 legacy file identified across backend/frontend",
+    "P2: auth/dashboard/analytics/notifications backend routes and all frontend code lack automated test coverage"
+  ],
+  "cleanup_candidates": {
+    "total_files_classified": 116,
+    "active": 103,
+    "confirmed_dead": 9,
+    "duplicate": 2,
+    "legacy": 1,
+    "probably_dead": 1,
+    "uncertain": 0,
+    "source_file": "FINAL_CLEANUP_RECOMMENDATIONS.md"
+  },
+  "optimization_priorities": {
+    "p0_critical_count": 3,
+    "p1_high_count": 4,
+    "p2_medium_count": 7,
+    "p3_low_count": 6,
+    "source_file": "OPTIMIZATION_ROADMAP.md"
+  },
+  "reviewer_status": {
+    "fully_verified": [
+      "R1.1",
+      "R1.3",
+      "R1.5"
+    ],
+    "mismatch_found": [
+      "R1.4",
+      "R2.1"
+    ],
+    "secondary_gap": "R1.1 omitted from REVIEWER_EVIDENCE_REPORT.md's own coverage roll-up table despite being fully verified"
+  },
+  "readiness_scores": {
+    "backend_pct": 85,
+    "frontend_pct": 40,
+    "integration_pct": 83,
+    "testing_pct": 45,
+    "reviewer_pct": 80,
+    "overall_pct": 67,
+    "formula_and_evidence": "see FINAL_PROJECT_READINESS.md for the full derivation of every figure above"
+  },
+  "audit_metadata": {
+    "audit_date": "2026-09-11",
+    "method": "read-only static analysis of a mirrored copy of the project; no source files were modified, moved, or deleted; no code was executed (npm run build / npm run lint / pytest could not be run this session due to a documented platform-level device-shell issue)",
+    "files_analyzed_total": 259,
+    "manifest_file": "FILE_MANIFEST.csv"
+  }
+}

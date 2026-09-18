@@ -81,8 +81,8 @@ export default function SimulationMonitoring() {
     try {
       const [statusRes, queueRes, histRes, analyticsRes] = await Promise.all([
         api.get('/simulation/status'),
-        api.get('/simulation/queue?limit=200'),
-        api.get('/simulation/history?limit=200'),
+        api.get('/simulation/queue?limit=100'),
+        api.get('/simulation/history?limit=100'),
         api.get('/simulation/analytics'),
       ]);
       setStatus(statusRes.data);
@@ -96,7 +96,7 @@ export default function SimulationMonitoring() {
 
   useEffect(() => {
     fetchAllData();
-    pollRef.current = setInterval(() => { if (document.visibilityState === 'visible') fetchAllData(); }, 2500);
+    pollRef.current = setInterval(() => { if (document.visibilityState === 'visible') fetchAllData(); }, 5000);
     return () => clearInterval(pollRef.current);
   }, [fetchAllData]);
 

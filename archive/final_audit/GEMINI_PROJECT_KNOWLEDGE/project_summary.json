@@ -1,0 +1,56 @@
+{
+  "project_name": "AI-Powered Unified Mobility and Delivery System Using Dynamic/Adaptive Dynamic Feasibility Analysis (DMFE/A-DMFE)",
+  "architecture": {
+    "type": "Modular Monolith",
+    "db": "SQLite/SQLAlchemy"
+  },
+  "core_algorithms": [
+    "DMFE Scoring",
+    "A-DMFE Context Awareness",
+    "A-DMFE Batching"
+  ],
+  "services": [
+    "API",
+    "DMFE Engine",
+    "Simulation Harness"
+  ],
+  "database": {
+    "engine": "SQLite"
+  },
+  "apis": [
+    "/api/config",
+    "/api/dmfe",
+    "/api/requests"
+  ],
+  "frontend": {
+    "framework": "React (Implied)"
+  },
+  "experiments": {
+    "framework": "evaluation/framework.py"
+  },
+  "tests": {
+    "framework": "pytest, verify scripts"
+  },
+  "performance": {
+    "bottlenecks": [
+      "Heavy DB polling",
+      "Sync haversine calls"
+    ]
+  },
+  "known_bugs": [],
+  "technical_debt": [
+    "Legacy Phase 8 config keys"
+  ],
+  "optimization_priorities": [
+    "Caching",
+    "Async DB"
+  ],
+  "research_claims": [
+    "Adaptive batching improves fuel efficiency",
+    "Multi-service unified scoring"
+  ],
+  "limitations": [
+    "Simulation, not human study",
+    "Pairing sub-problem only"
+  ]
+}

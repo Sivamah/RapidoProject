@@ -18,14 +18,27 @@ async def lifespan(app: FastAPI):
     try:
         admin = db.query(User).filter(User.email == "admin@aiorch.com").first()
         if not admin:
-            admin = User(
-                email="admin@aiorch.com",
-                full_name="Platform Admin",
-                password_hash=get_password_hash("admin123"),
-                role="Admin",
-            )
-            db.add(admin)
-            db.commit()
+            if settings.ENVIRONMENT == "development":
+                admin = User(
+                    email="admin@aiorch.com",
+                    full_name="Platform Admin",
+                    password_hash=get_password_hash("admin123"),
+                    role="Admin",
+                )
+                db.add(admin)
+                db.commit()
+                import logging
+                logging.getLogger("aiorch").warning(
+                    "Seeded default Admin account (admin@aiorch.com / admin123) because "
+                    "ENVIRONMENT=development. Change this password before deploying."
+                )
+            else:
+                import logging
+                logging.getLogger("aiorch").error(
+                    "No Admin user exists and ENVIRONMENT is not 'development' -- refusing to "
+                    "auto-seed an insecure default admin account. Create an Admin user via a "
+                    "secure out-of-band process, or set ENVIRONMENT=development for local use."
+                )
 
         # Must run while the session is still open. This used to sit after
         # the finally-block below, so it ran on a closed session — SQLAlchemy

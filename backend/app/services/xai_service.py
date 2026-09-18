@@ -24,7 +24,9 @@ from app.core.json_utils import json_loads
 from app.db.models import SimulationRequest, Provider, Trip
 from app.dmfe.compatibility import CompatibilityCalculator, _get_threshold
 from app.schemas.xai import (
-    XAIFactors, XAITimelineItem, XAIExplanationItem
+    XAIFactors, XAITimelineItem, XAIExplanationItem,
+    XAIRequestPoint, XAIDriverLink, XAIVehicleLink,
+    XAIRouteStopPoint, XAITripLink,
 )
 
 # Per-request explanation cache: the frontend polls every few seconds and
@@ -65,35 +67,155 @@ def _best_partner(
     return best
 
 
-def _trip_metrics(db: Session, request_id: int, trip_by_request: Optional[Dict[int, Any]] = None) -> Optional[Dict[str, Any]]:
-    """Real impact metrics from the Trip the request was dispatched in."""
+def _find_trip(db: Session, request_id: int, trip_by_request: Optional[Dict[int, Any]] = None) -> Optional["Trip"]:
+    """The dispatched Trip a request was assigned to, or None if not dispatched."""
     if trip_by_request is not None:
-        trip = trip_by_request.get(request_id)
-        if trip is None:
-            return None
-    else:
-        trip = (
-            db.query(Trip)
-            .filter(Trip.request_ids_json.like(f'%"{request_id}"%'))
-            .order_by(Trip.created_at.desc())
-            .first()
-        )
-        if trip is None:
-            return None
+        return trip_by_request.get(request_id)
+    trip = (
+        db.query(Trip)
+        .filter(Trip.request_ids_json.like(f'%"{request_id}"%'))
+        .order_by(Trip.created_at.desc())
+        .first()
+    )
+    if trip is not None:
+        return trip
+    # Fallback: request_ids_json may be stored without quotes (e.g. "[1, 2]"),
+    # in which case the quoted LIKE above cannot match.
+    for trip in db.query(Trip).order_by(Trip.created_at.desc()).all():
+        if request_id in json_loads(trip.request_ids_json, []):
+            return trip
+    return None
+
+
+def _trip_metrics(db: Session, request_id: int, trip_by_request: Optional[Dict[int, Any]] = None, trip: Optional[Any] = None) -> Optional[Dict[str, Any]]:
+    """Real impact metrics from the Trip the request was dispatched in."""
+    if trip is None:
+        trip = _find_trip(db, request_id, trip_by_request)
+    if trip is None:
+        return None
     ids = json_loads(trip.request_ids_json, [])
     # Driver profit: revenue from the trip minus operating cost.
     # Revenue ≈ distance × (ride/food/parcel blended per-km rate ~ ₹12/km);
     # operating cost ≈ fuel cost (fuel_l × ₹100/L).
     revenue = (trip.total_distance_km or 0.0) * 12.0
     fuel_cost = (trip.fuel_l or 0.0) * 100.0
+    # Separate-trip baseline cost: the SAME per-km operating rate the
+    # optimizer used for this vehicle (Vehicle.cost_per_km) applied to the
+    # pre-optimization distance (this trip's own distance plus whatever
+    # distance batching saved) — i.e. the real cost of running these
+    # requests as individual trips instead of one combined trip. Mirrors the
+    # exact `total_km * cost_per_km` formula optimizer.py already uses for
+    # `estimated_cost`, just applied to the baseline distance instead of the
+    # optimized one — no new pricing logic, purely exposing derived
+    # arithmetic from already-stored real numbers.
+    cost_per_km = (trip.vehicle.cost_per_km if trip.vehicle else None) or 10.0
+    separate_km = (trip.total_distance_km or 0.0) + (trip.distance_saved_km or 0.0)
+    # Solo profit: the SAME revenue/fuel-cost formula as driver_profit_inr
+    # above, applied to the pre-batching (separate-trips) distance and fuel
+    # instead of the actual dispatched trip's — i.e. what the driver would
+    # have earned running these requests individually. `fuel_saved_l` is
+    # exactly (separate fuel usage − this trip's fuel usage), so adding it
+    # back to `trip.fuel_l` recovers the separate-trips fuel figure without
+    # a second pricing model or any new assumption.
+    separate_fuel_l = (trip.fuel_l or 0.0) + (trip.fuel_saved_l or 0.0)
+    solo_revenue = separate_km * 12.0
+    solo_fuel_cost = separate_fuel_l * 100.0
     return {
         "trip_code": trip.trip_code,
         "fuel_saved_l": trip.fuel_saved_l or 0.0,
         "co2_saved_kg": trip.co2_saved_kg or 0.0,
         "distance_saved_km": trip.distance_saved_km or 0.0,
         "driver_profit_inr": round(max(0.0, revenue - fuel_cost), 2),
+        "trip_cost_inr": round(trip.estimated_cost or 0.0, 2),
+        "separate_cost_inr": round(separate_km * cost_per_km, 2),
+        "solo_profit_inr": round(max(0.0, solo_revenue - solo_fuel_cost), 2),
         "batched_with": [i for i in ids if i != request_id],
     }
+
+
+def _request_point(r: Any) -> "XAIRequestPoint":
+    """Map-linkable point for one request (pickup + drop)."""
+    return XAIRequestPoint(
+        request_id=r.id,
+        request_type=r.request_type or "ride",
+        pickup_address=r.pickup_address or "",
+        drop_address=r.drop_address or "",
+        pickup_lat=float(r.pickup_lat or 0.0),
+        pickup_lng=float(r.pickup_lng or 0.0),
+        drop_lat=float(r.drop_lat or 0.0),
+        drop_lng=float(r.drop_lng or 0.0),
+        priority=r.priority or "Medium",
+    )
+
+
+def _load_request_rows(db: Session, request_ids) -> Dict[int, Any]:
+    """ORM SimulationRequest rows keyed by id for the given (deduped) IDs."""
+    ids = [i for i in dict.fromkeys(request_ids or []) if i]
+    if not ids:
+        return {}
+    return {
+        r.id: r
+        for r in db.query(SimulationRequest)
+        .filter(SimulationRequest.id.in_(ids))
+        .all()
+    }
+
+
+def _build_related_request_points(rows: Dict[int, Any], request_ids) -> List["XAIRequestPoint"]:
+    """Ordered XAIRequestPoint list for the given (deduped) request IDs."""
+    points = []
+    for rid in dict.fromkeys(request_ids or []):
+        r = rows.get(rid)
+        if r is not None:
+            points.append(_request_point(r))
+    return points
+
+
+def _build_trip_link(trip: Any, request_by_id: Dict[int, Any]) -> Optional["XAITripLink"]:
+    """Trip snapshot for the map: driver/vehicle locations + ordered route stops."""
+    if trip is None:
+        return None
+    stops = json_loads(trip.stop_order_json, [])
+    route_stops = []
+    for s in stops if isinstance(stops, list) else []:
+        if not isinstance(s, dict):
+            continue
+        rid = s.get("request_id")
+        req = request_by_id.get(rid)
+        if req is None:
+            continue
+        action = s.get("action", "pickup")
+        lat = float((req.drop_lat if action == "drop" else req.pickup_lat) or 0.0)
+        lng = float((req.drop_lng if action == "drop" else req.pickup_lng) or 0.0)
+        route_stops.append(XAIRouteStopPoint(
+            request_id=rid,
+            action=action,
+            lat=lat,
+            lng=lng,
+            arrival_min=float(s.get("arrival_min") or 0.0),
+        ))
+    driver = trip.driver if trip.driver is not None else None
+    vehicle = trip.vehicle if trip.vehicle is not None else None
+    return XAITripLink(
+        trip_id=trip.id,
+        trip_code=trip.trip_code or "",
+        is_shared=bool(trip.is_shared),
+        status=trip.status or "Active",
+        driver=XAIDriverLink(
+            id=driver.id,
+            name=driver.name or "",
+            current_lat=float(driver.current_lat or 0.0),
+            current_lng=float(driver.current_lng or 0.0),
+        ) if driver is not None else None,
+        vehicle=XAIVehicleLink(
+            id=vehicle.id,
+            name=vehicle.name or "",
+            vehicle_type=vehicle.vehicle_type or "",
+            current_lat=float(vehicle.current_lat or 0.0),
+            current_lng=float(vehicle.current_lng or 0.0),
+        ) if vehicle is not None else None,
+        route_stops=route_stops,
+    )
 
 
 def _generate_explanation_for_request(
@@ -129,7 +251,8 @@ def _generate_explanation_for_request(
     )
     result = _best_partner(calculator, db, req, partners, compute_kwargs)
 
-    trip_metrics = _trip_metrics(db, req_id, trip_by_request)
+    trip = _find_trip(db, req_id, trip_by_request)
+    trip_metrics = _trip_metrics(db, req_id, trip_by_request, trip=trip)
 
     if result is not None:
         fs = result.factor_scores
@@ -195,10 +318,21 @@ def _generate_explanation_for_request(
         reason = "No nearby request with overlapping route/time window to batch with."
         partner_ids = []
 
-    confidence = round(min(99.0, 70.0 + overall * 0.35), 1)
-    # A-DMFE: use the engine's decision confidence when available
+    # Decision confidence.
+    #
+    # The A-DMFE (adaptive) path computes a real confidence in
+    # CompatibilityCalculator.compute and exposes it as
+    # `result.decision_confidence`.  The STATIC DMFE path — the Phase 9
+    # fixed-weight baseline used for research comparison — leaves it None.
+    # This assignment used to live inside the `result is None` branch only, so
+    # with `admfe.mode = static` (result present, decision_confidence None)
+    # `confidence` was never bound and the whole endpoint raised
+    # UnboundLocalError.  The score-derived value below is the documented
+    # fallback and is now applied on every path that lacks an engine value.
     if result is not None and result.decision_confidence is not None:
         confidence = result.decision_confidence
+    else:
+        confidence = round(min(99.0, 70.0 + overall * 0.35), 1)
 
     # Timeline from real lifecycle events
     c_at = req.created_at or datetime.now(timezone.utc)
@@ -235,6 +369,25 @@ def _generate_explanation_for_request(
             description=f"Assigned to {trip_metrics['trip_code']}",
         ))
 
+    # ── Live-map link data (additive; no engine/decision logic involved) ────
+    # The highlighted request set = the request itself + XAI-evaluated partner
+    # IDs + the real dispatched-trip member IDs (deduped), so both the
+    # evaluated pair and the actual trip group appear on the map.
+    related_ids = [req_id, *partner_ids]
+    if trip is not None:
+        related_ids = [req_id, *partner_ids, *json_loads(trip.request_ids_json, [])]
+    request_rows = _load_request_rows(db, related_ids)
+    related_requests = _build_related_request_points(request_rows, related_ids)
+
+    if result is not None:
+        reason_bullets = result.reasons or []
+        key_reasons = [
+            b[2:] for b in reason_bullets
+            if b.startswith(("✓", "✗", "ℹ️"))
+        ] or [decision_summary]
+    else:
+        key_reasons = [reason]
+
     return XAIExplanationItem(
         id=req_id,
         request_id=req_id,
@@ -248,6 +401,13 @@ def _generate_explanation_for_request(
         confidence_score=confidence,
         pickup_address=req.pickup_address or "Coimbatore",
         drop_address=req.drop_address or "Destination",
+        pickup_lat=round(float(req.pickup_lat or 0.0), 6),
+        pickup_lng=round(float(req.pickup_lng or 0.0), 6),
+        drop_lat=round(float(req.drop_lat or 0.0), 6),
+        drop_lng=round(float(req.drop_lng or 0.0), 6),
+        key_reasons=key_reasons,
+        related_requests=related_requests,
+        trip=_build_trip_link(trip, request_rows),
         estimated_distance_km=dist,
         factors=factors,
         timeline=timeline,
@@ -258,6 +418,9 @@ def _generate_explanation_for_request(
         distance_saved_km=round((trip_metrics or {}).get("distance_saved_km", 0.0), 2),
         driver_profit_inr=(trip_metrics or {}).get("driver_profit_inr", 0.0),
         trip_code=(trip_metrics or {}).get("trip_code"),
+        trip_cost_inr=(trip_metrics or {}).get("trip_cost_inr", 0.0),
+        separate_cost_inr=(trip_metrics or {}).get("separate_cost_inr", 0.0),
+        solo_profit_inr=(trip_metrics or {}).get("solo_profit_inr", 0.0),
     )
 
 
@@ -356,15 +519,31 @@ class XAIService:
         providers = {p.id: p.name for p in db.query(Provider).filter(Provider.id.in_(provider_ids)).all()} if provider_ids else {}
 
         threshold = _get_threshold(db)
-        compute_kwargs = self._build_compute_kwargs(db, requests)
 
-        # Build the request -> trip map once so the per-request trip metrics
-        # lookup is O(1) instead of a LIKE query per explanation.
-        trip_by_request: Dict[int, Any] = {}
-        for trip in db.query(Trip).all():
-            for rid in json_loads(trip.request_ids_json, []):
-                if rid not in trip_by_request:
-                    trip_by_request[rid] = trip
+        # Both of these are needed only to GENERATE an explanation.  The
+        # frontend polls every 2.5 s and explanations are cached for
+        # _EXPLANATION_CACHE_TTL, so the overwhelmingly common case is "every
+        # request is a cache hit" — in which case neither the A-DMFE context
+        # nor the trip index is ever read.  They are therefore built lazily,
+        # at most once per call, on the first cache miss.
+        lazy: Dict[str, Any] = {}
+
+        def _compute_kwargs() -> Dict[str, Any]:
+            if "compute_kwargs" not in lazy:
+                lazy["compute_kwargs"] = self._build_compute_kwargs(db, requests)
+            return lazy["compute_kwargs"]
+
+        def _trip_index() -> Dict[int, Any]:
+            # Request -> Trip map, so per-request trip lookup is O(1) instead
+            # of one LIKE query per explanation.
+            if "trip_by_request" not in lazy:
+                trip_by_request: Dict[int, Any] = {}
+                for trip in db.query(Trip).all():
+                    for rid in json_loads(trip.request_ids_json, []):
+                        if rid not in trip_by_request:
+                            trip_by_request[rid] = trip
+                lazy["trip_by_request"] = trip_by_request
+            return lazy["trip_by_request"]
 
         explanations = []
         search_lower = search.lower() if search else None
@@ -378,7 +557,7 @@ class XAIService:
             else:
                 exp = _generate_explanation_for_request(
                     db, self._calculator, req, pname, threshold,
-                    compute_kwargs, trip_by_request,
+                    _compute_kwargs(), _trip_index(),
                 )
                 self._cache_put(req.id, exp)
 
@@ -447,7 +626,9 @@ class XAIService:
             "most_common_decision": most_common,
             "decision_breakdown": [{"name": k, "count": v} for k, v in decision_counts.items()],
             "score_distribution": [{"name": k, "count": v} for k, v in score_ranges.items()],
-            "explanations": explanations,
+            # Omit the full explanations list: the frontend only reads the aggregate
+            # fields above; serializing 200 items adds ~50–200 KB per overview poll.
+            "explanations": [],
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 

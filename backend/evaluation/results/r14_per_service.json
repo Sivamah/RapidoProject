@@ -1,0 +1,104 @@
+{
+  "experiment": "R1.4 per-service breakdown",
+  "reviewer_mapping": "R1.4",
+  "timestamp": "2026-09-02T11:34:25.354331+00:00",
+  "seed": 1404,
+  "mode": "adaptive",
+  "workload": {
+    "total_requests": 60,
+    "request_mix": {
+      "ride": 24,
+      "food": 24,
+      "parcel": 12
+    }
+  },
+  "parameters": {
+    "single_pass_waves": true,
+    "fleet_size": 60,
+    "service_types": [
+      "ride",
+      "food",
+      "parcel"
+    ],
+    "commercial_names_used": false
+  },
+  "overall": {
+    "requests": 60,
+    "dispatched_requests": 60,
+    "assignment_rate_pct": 100.0,
+    "trips": 35,
+    "shared_trips": 22,
+    "individual_trips": 13,
+    "batching_rate_pct": 62.9,
+    "total_distance_km": 419.47,
+    "total_fuel_l": 17.67,
+    "avg_utilization_pct": 76.55,
+    "avg_delay_min": 5.42
+  },
+  "per_service": {
+    "ride": {
+      "requests": 24,
+      "dispatched_requests": 24,
+      "pending_requests": 0,
+      "rejected_requests": 0,
+      "assignment_rate_pct": 100.0,
+      "shared_requests": 19,
+      "individual_requests": 5,
+      "trips": 19,
+      "shared_trips": 14,
+      "individual_trips": 5,
+      "batching_rate_pct": 73.7,
+      "total_distance_km": 237.75,
+      "total_fuel_l": 11.45,
+      "avg_utilization_pct": 79.89,
+      "avg_delay_min": 7.03
+    },
+    "food": {
+      "requests": 24,
+      "dispatched_requests": 24,
+      "pending_requests": 0,
+      "rejected_requests": 0,
+      "assignment_rate_pct": 100.0,
+      "shared_requests": 18,
+      "individual_requests": 6,
+      "trips": 13,
+      "shared_trips": 7,
+      "individual_trips": 6,
+      "batching_rate_pct": 53.8,
+      "total_distance_km": 149.59,
+      "total_fuel_l": 6.18,
+      "avg_utilization_pct": 73.62,
+      "avg_delay_min": 6.38
+    },
+    "parcel": {
+      "requests": 12,
+      "dispatched_requests": 12,
+      "pending_requests": 0,
+      "rejected_requests": 0,
+      "assignment_rate_pct": 100.0,
+      "shared_requests": 10,
+      "individual_requests": 2,
+      "trips": 3,
+      "shared_trips": 1,
+      "individual_trips": 2,
+      "batching_rate_pct": 33.3,
+      "total_distance_km": 32.13,
+      "total_fuel_l": 2.03,
+      "avg_utilization_pct": 53.2,
+      "avg_delay_min": 3.49
+    }
+  },
+  "reconciliation": {
+    "requests_total": 60,
+    "overall_requests": 60,
+    "dispatched_total": 60,
+    "overall_dispatched": 60,
+    "trips_total": 35,
+    "trips_in_db": 35,
+    "shared_total": 22,
+    "individual_total": 13,
+    "reconciled": true
+  },
+  "method_notes": "Service categories are ride/food/parcel exactly as stored in SimulationRequest.request_type. Trips are attributed to their dominant (most-frequent) service. Shared-trip request counts are attributed without double counting. Totals reconcile.",
+  "limitations": "One deterministic workload; synthetic requests; not a measure of real-world service fixtures."
+}

@@ -1,131 +1,84 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
-  BrainCircuit, RefreshCw, BarChart2, PieChart as PieIcon, FileText, Info
+  BrainCircuit, RefreshCw, Search, LayoutGrid, CheckCircle2, XCircle,
+  Route as RouteIcon, ChevronDown, X,
 } from 'lucide-react';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell
-} from 'recharts';
 import api from '../services/api';
 
 import PageHeader from '../components/ui/PageHeader';
 import StatusBadge from '../components/ui/StatusBadge';
 
-import ExplanationFilters from '../components/xai/ExplanationFilters';
 import DecisionCard from '../components/xai/DecisionCard';
-import ScoreBreakdown from '../components/xai/ScoreBreakdown';
-import ExplanationTimeline from '../components/xai/ExplanationTimeline';
-import CompatibilityGauge from '../components/xai/CompatibilityGauge';
+import XaiMapPanel from '../components/xai/XaiMapPanel';
+import XaiDecisionPanel from '../components/xai/XaiDecisionPanel';
+import { normalizeXaiHighlight } from '../utils/xaiMap';
 
-const PIE_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#a855f7'];
-
-function buildOverview(items) {
-  const total = items.length;
-  if (total === 0) {
-    return {
-      total_explanations: 0,
-      avg_compatibility_score: 0,
-      avg_confidence_score: 0,
-      most_common_decision: 'N/A',
-      decision_breakdown: [],
-      score_distribution: [],
-      explanations: [],
-      timestamp: new Date().toISOString(),
-    };
-  }
-
-  const sumCompat = items.reduce(
-    (s, e) => s + (e.factors?.overall_compatibility_score || 0), 0
-  );
-  const sumConf = items.reduce((s, e) => s + (e.confidence_score || 0), 0);
-
-  const decisionCounts = {};
-  const scoreRanges = { '90-100%': 0, '80-89%': 0, '70-79%': 0, '<70%': 0 };
-
-  items.forEach((e) => {
-    const decision = e.decision || 'Unknown';
-    decisionCounts[decision] = (decisionCounts[decision] || 0) + 1;
-
-    const score = e.factors?.overall_compatibility_score || 0;
-    if (score >= 90) scoreRanges['90-100%'] += 1;
-    else if (score >= 80) scoreRanges['80-89%'] += 1;
-    else if (score >= 70) scoreRanges['70-79%'] += 1;
-    else scoreRanges['<70%'] += 1;
-  });
-
-  let mostCommon = 'N/A';
-  let maxCount = -1;
-  Object.entries(decisionCounts).forEach(([name, count]) => {
-    if (count > maxCount) {
-      mostCommon = name;
-      maxCount = count;
-    }
-  });
-
-  return {
-    total_explanations: total,
-    avg_compatibility_score: Math.round((sumCompat / total) * 10) / 10,
-    avg_confidence_score: Math.round((sumConf / total) * 10) / 10,
-    most_common_decision: mostCommon,
-    decision_breakdown: Object.entries(decisionCounts).map(([name, count]) => ({ name, count })),
-    score_distribution: Object.entries(scoreRanges).map(([name, count]) => ({ name, count })),
-    explanations: items,
-    timestamp: new Date().toISOString(),
-  };
+// ── Decision outcome grouping (Batched / Individual / Rejected) ────────────
+// The engine only ever emits two `decision` strings — "Compatible for
+// Batching" and "Standalone Direct Routing" — but "Standalone Direct
+// Routing" actually covers two different situations that the backend's own
+// `reason` text already distinguishes (xai_service.py): a candidate partner
+// was evaluated and scored below the compatibility threshold ("Rejected
+// from batching: …"), or no candidate partner existed to evaluate at all
+// ("No nearby request…"). `batched_with_request_ids` (empty vs not) is the
+// same signal in structured form, so splitting on it recovers that
+// distinction for the filter tabs below without inventing any new engine
+// state or touching the DMFE decision logic itself.
+function explanationOutcome(exp) {
+  const decision = String(exp?.decision || '').toLowerCase();
+  if (decision.includes('compatible for batching')) return 'batched';
+  if ((exp?.batched_with_request_ids || []).length > 0) return 'rejected';
+  return 'individual';
 }
+
+const OUTCOME_TABS = [
+  { id: 'all', label: 'All', icon: LayoutGrid },
+  { id: 'batched', label: 'Batched', icon: CheckCircle2 },
+  { id: 'individual', label: 'Individual', icon: RouteIcon },
+  { id: 'rejected', label: 'Rejected', icon: XCircle },
+];
 
 export default function ExplanationDashboard() {
   const [search, setSearch] = useState('');
-  const [filters, setFilters] = useState({
-    requestType: 'All',
-    providerId: '0',
-    decision: 'All',
-    status: 'All',
-  });
-
-  const [overview, setOverview] = useState({
-    total_explanations: 0,
-    avg_compatibility_score: 0,
-    avg_confidence_score: 0,
-    most_common_decision: 'N/A',
-    decision_breakdown: [],
-    score_distribution: [],
-    explanations: [],
-  });
-
-  const [providers, setProviders] = useState([]);
+  const [explanations, setExplanations] = useState([]);
+  const [timestamp, setTimestamp] = useState(null);
   const [selectedExp, setSelectedExp] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [mapOpen, setMapOpen] = useState(true);
+  const [outcomeTab, setOutcomeTab] = useState('all');
+  // Mobile-only: LEFT list collapses behind a toggle so the map gets the
+  // screen; RIGHT panel becomes a slide-in drawer (below) instead of
+  // pushing the map out of view.
+  const [leftOpen, setLeftOpen] = useState(true);
 
   const pollRef = useRef(null);
 
-  // Fetch Providers list for filter dropdown once
-  useEffect(() => {
-    const fetchProviders = async () => {
-      try {
-        const res = await api.get('/providers/');
-        setProviders(res.data || []);
-      } catch (err) {
-        console.error('Failed to load providers:', err);
-      }
-    };
-    fetchProviders();
-  }, []);
+  // Card click → same-tab map interaction:
+  //   * new card    → select it and make sure the map panel is open
+  //   * same card   → toggle the map panel open/closed (collapse control)
+  const handleCardClick = (exp) => {
+    const isSame = selectedExp && selectedExp.request_id === exp.request_id;
+    if (isSame) {
+      setMapOpen((o) => !o);
+      return;
+    }
+    setSelectedExp(exp);
+    setMapOpen(true);
+  };
 
-  // Fetch XAI Data
+  // Fetch XAI explanations — search is the only server-side filter the
+  // redesigned LEFT panel exposes; the Batched/Individual/Rejected/All split
+  // is applied client-side below so switching tabs never re-hits the API.
   const fetchData = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       if (search) params.append('search', search);
-      if (filters.requestType !== 'All') params.append('request_type', filters.requestType);
-      if (filters.providerId !== '0') params.append('provider_id', filters.providerId);
-      if (filters.decision !== 'All') params.append('decision', filters.decision);
-      if (filters.status !== 'All') params.append('status', filters.status);
       params.append('limit', '200');
 
       const listRes = await api.get(`/xai/explanations?${params.toString()}`);
-
       const items = listRes.data || [];
-      setOverview(buildOverview(items));
+      setExplanations(items);
+      setTimestamp(new Date().toISOString());
 
       // Keep selected item updated or pick first
       if (items.length > 0) {
@@ -142,7 +95,7 @@ export default function ExplanationDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [search, filters]);
+  }, [search]);
 
   // Polling: 2.5s
   useEffect(() => {
@@ -151,30 +104,30 @@ export default function ExplanationDashboard() {
     return () => clearInterval(pollRef.current);
   }, [fetchData]);
 
-  // Filter change handlers
-  const handleFilterChange = (key, value) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const handleResetFilters = () => {
-    setSearch('');
-    setFilters({
-      requestType: 'All',
-      providerId: '0',
-      decision: 'All',
-      status: 'All',
+  // Grouped once per fetch so the four tab counts and the filtered list stay
+  // in lockstep — recomputing per-render would be wasted work on every poll.
+  const explanationsByOutcome = useMemo(() => {
+    const groups = { batched: [], individual: [], rejected: [] };
+    explanations.forEach((exp) => {
+      groups[explanationOutcome(exp)].push(exp);
     });
-  };
+    return groups;
+  }, [explanations]);
 
-  const filteredExplanations = overview.explanations || [];
+  const filteredExplanations = outcomeTab === 'all' ? explanations : (explanationsByOutcome[outcomeTab] || []);
+
+  // Normalized once here so the RIGHT details panel and XaiMapPanel's
+  // internal highlight (computed the same way from the same `selectedExp`)
+  // stay in lockstep without either owning the other's state.
+  const highlight = useMemo(() => normalizeXaiHighlight(selectedExp), [selectedExp]);
 
   return (
-    <div className="space-y-6 pb-10 max-w-[1500px] mx-auto">
+    <div className="space-y-4 pb-6 max-w-[1700px] mx-auto">
       <PageHeader
         eyebrow="AI Insights"
         live
         title="Explainable Decisions"
-        description="Inspect how the feasibility engine scores pairings — factor attribution, confidence and decision distribution."
+        description="Inspect how the feasibility engine scores pairings — decision, factor attribution and route, side by side."
         actions={
           <div className="flex items-center gap-2.5">
             <StatusBadge tone="success" label="Auto-refresh 2.5s" pulse />
@@ -185,154 +138,115 @@ export default function ExplanationDashboard() {
         }
       />
 
-      {/* ── Search & Filter Controls Bar ──────────────────────────────────────── */}
-      <ExplanationFilters
-        search={search}
-        onSearchChange={setSearch}
-        filters={filters}
-        onFilterChange={handleFilterChange}
-        onResetFilters={handleResetFilters}
-        providerOptions={providers}
-      />
-
-      {loading && !overview.timestamp ? (
+      {loading && !timestamp ? (
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-500" />
         </div>
       ) : (
-        <>
-          {/* ── Top Summary Cards ───────────────────────────────────────────── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { label: 'Total Explanations', value: overview.total_explanations || 0, mono: true },
-              { label: 'Avg Compatibility', value: `${overview.avg_compatibility_score || 0}%`, accent: 'text-brand-secondary' },
-              { label: 'Avg Model Confidence', value: `${overview.avg_confidence_score || 0}%`, accent: 'text-brand-warning' },
-              { label: 'Primary Outcome', value: overview.most_common_decision || 'N/A', small: true },
-            ].map((card) => (
-              <div key={card.label} className="glass-card rounded-[22px] p-5 relative overflow-hidden">
-                <p className="section-label">{card.label}</p>
-                <p className={`mt-2.5 text-[26px] font-display font-semibold tracking-tight ${card.small ? 'text-[18px] mt-3.5' : card.accent || 'text-white'} ${card.mono ? 'tabular-nums' : 'break-words'}`}>
-                  {card.value}
-                </p>
-              </div>
-            ))}
-          </div>
+        // ── 3-column layout — LEFT (decisions) / CENTER (map, the dominant
+        // element) / RIGHT (selected decision detail) ─────────────────────
+        <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:h-[calc(100vh-220px)] lg:min-h-[600px]">
+          {/* LEFT: AI Decisions — compact scrollable list with quick filters */}
+          <div className="w-full lg:w-[300px] shrink-0 flex flex-col gap-3 lg:h-full lg:overflow-hidden">
+            <button
+              onClick={() => setLeftOpen((o) => !o)}
+              className="lg:hidden w-full flex items-center justify-between glass-panel rounded-xl px-3.5 py-2.5 text-[13px] font-semibold text-white"
+            >
+              <span className="flex items-center gap-1.5">
+                <BrainCircuit className="h-4 w-4 text-[#00F0FF]" /> AI Decisions
+                <span className="text-white/40 font-mono text-[11px]">({filteredExplanations.length})</span>
+              </span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${leftOpen ? 'rotate-180' : ''}`} />
+            </button>
 
-          {/* ── Visualizations Section (3 Column Grid) ───────────────────────── */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* 1. Score Distribution Chart */}
-            <div className="bg-gray-800 border border-gray-700 rounded-xl p-5 shadow-sm">
-              <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-                <BarChart2 className="h-4 w-4 text-indigo-400" />
-                Score Distribution Chart
-              </h3>
-              <div className="h-56 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={overview.score_distribution || []}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                    <XAxis dataKey="name" stroke="#9ca3af" fontSize={11} />
-                    <YAxis stroke="#9ca3af" fontSize={11} allowDecimals={false} />
-                    <Tooltip contentStyle={{ backgroundColor: '#1f2937', borderColor: '#4b5563', color: '#fff', borderRadius: '8px' }} />
-                    <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* 2. Compatibility Gauge */}
-            <CompatibilityGauge
-              score={selectedExp?.factors?.overall_compatibility_score || overview.avg_compatibility_score || 85}
-              confidence={selectedExp?.confidence_score || overview.avg_confidence_score || 90}
-            />
-
-            {/* 3. Decision Breakdown */}
-            <div className="bg-gray-800 border border-gray-700 rounded-xl p-5 shadow-sm">
-              <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-                <PieIcon className="h-4 w-4 text-orange-400" />
-                Decision Breakdown
-              </h3>
-              <div className="h-56 w-full flex items-center justify-center">
-                {(overview.decision_breakdown || []).length === 0 ? (
-                  <p className="text-sm text-gray-500">No decisions evaluated</p>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={overview.decision_breakdown || []}
-                        dataKey="count"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={45}
-                        outerRadius={75}
-                        paddingAngle={3}
-                      >
-                        {(overview.decision_breakdown || []).map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip contentStyle={{ backgroundColor: '#1f2937', borderColor: '#4b5563', color: '#fff', borderRadius: '8px' }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* ── Main Decision Explanation Panel ─────────────────────────────── */}
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            {/* Left Column: Decision Cards List (2 cols) */}
-            <div className="lg:col-span-2 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-indigo-400" />
-                  Decision Explanation Cards
-                </h3>
-                <span className="text-xs text-gray-400 font-mono">
-                  {filteredExplanations.length} records
-                </span>
+            <div className={`${leftOpen ? 'flex' : 'hidden'} lg:flex flex-col gap-3 min-h-0 lg:flex-1`}>
+              {/* Search */}
+              <div className="relative shrink-0">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by ID, provider, reason…"
+                  className="w-full pl-8 pr-3 py-2 bg-white/[0.03] border border-white/10 rounded-lg text-[12px] text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-[#00F0FF]/40"
+                />
               </div>
 
+              {/* All / Batched / Individual / Rejected */}
+              <div className="glass-panel rounded-[14px] p-1.5 flex items-center gap-1.5 overflow-x-auto custom-scrollbar shrink-0">
+                {OUTCOME_TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setOutcomeTab(tab.id)}
+                    className={`tab-pill shrink-0 ${outcomeTab === tab.id ? 'tab-pill-active' : ''}`}
+                  >
+                    <tab.icon className="h-3.5 w-3.5" />
+                    {tab.label}
+                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                      outcomeTab === tab.id ? 'bg-white/15 text-white' : 'bg-white/[0.06] text-brand-text-muted'
+                    }`}>
+                      {tab.id === 'all' ? explanations.length : explanationsByOutcome[tab.id].length}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Decision list */}
               {filteredExplanations.length === 0 ? (
-                <div className="bg-gray-800 border border-gray-700 rounded-xl p-12 text-center text-gray-500">
-                  <BrainCircuit className="h-10 w-10 mx-auto mb-2 opacity-40" />
-                  <p className="text-base font-medium">No explanations match your filter</p>
-                  <p className="text-xs text-gray-600 mt-1">Start simulation engine or reset search filters</p>
+                <div className="bg-[#0A0F1A]/70 border border-white/10 rounded-xl p-8 text-center text-white/35">
+                  <BrainCircuit className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                  <p className="text-[13px] font-medium">
+                    No {OUTCOME_TABS.find((t) => t.id === outcomeTab)?.label.toLowerCase()} decisions
+                  </p>
+                  <p className="text-[11px] text-white/25 mt-1">Start the simulation engine or check another tab</p>
                 </div>
               ) : (
-                <div className="space-y-3 max-h-[700px] overflow-y-auto pr-1">
+                <div className="space-y-2 overflow-y-auto pr-1 custom-scrollbar lg:flex-1 max-h-[520px] lg:max-h-none">
                   {filteredExplanations.map((exp) => (
                     <DecisionCard
                       key={exp.id || exp.request_id}
                       explanation={exp}
                       isSelected={selectedExp?.request_id === exp.request_id}
-                      onSelect={() => setSelectedExp(exp)}
+                      onSelect={() => handleCardClick(exp)}
                     />
                   ))}
                 </div>
               )}
             </div>
-
-            {/* Right Column: Detailed Explanation & Factors Inspection (3 cols) */}
-            <div className="lg:col-span-3 space-y-6">
-              {selectedExp ? (
-                <>
-                  {/* Detailed Factor Breakdown Progress Bars */}
-                  <ScoreBreakdown factors={selectedExp.factors} />
-
-                  {/* Chronological Event Timeline */}
-                  <ExplanationTimeline timeline={selectedExp.timeline} />
-                </>
-              ) : (
-                <div className="bg-gray-800 border border-gray-700 rounded-xl p-16 text-center text-gray-500">
-                  <Info className="h-10 w-10 mx-auto mb-2 opacity-40 text-indigo-400" />
-                  <p className="text-base font-medium text-gray-300">Select a Decision Card</p>
-                  <p className="text-xs text-gray-500 mt-1">Click any decision card on the left to inspect detailed factor attributions and timeline events.</p>
-                </div>
-              )}
-            </div>
           </div>
-        </>
+
+          {/* CENTER: Live map — the largest element on screen */}
+          <div className="flex-1 min-w-0 lg:h-full">
+            <XaiMapPanel
+              explanation={selectedExp}
+              open={mapOpen}
+              onToggle={() => setMapOpen((o) => !o)}
+            />
+          </div>
+
+          {/* RIGHT: Selected XAI decision detail. Desktop: a static column.
+              Mobile: a slide-in drawer over the map with a backdrop, so it
+              never pushes the map out of view. */}
+          {selectedExp && mapOpen && (
+            <>
+              <div
+                className="lg:hidden fixed inset-0 bg-black/60 z-40"
+                onClick={() => setMapOpen(false)}
+              />
+              <div className="fixed inset-y-0 right-0 z-50 w-[88%] max-w-[360px] p-3 lg:p-0 lg:static lg:z-auto lg:w-[300px] lg:max-w-none lg:shrink-0 lg:h-full overflow-y-auto lg:overflow-visible">
+                <button
+                  onClick={() => setMapOpen(false)}
+                  className="lg:hidden mb-2 flex items-center gap-1.5 text-[11px] text-white/50 hover:text-white"
+                >
+                  <X className="h-3.5 w-3.5" /> Close
+                </button>
+                <div className="lg:h-full">
+                  <XaiDecisionPanel highlight={highlight} />
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       )}
     </div>
   );

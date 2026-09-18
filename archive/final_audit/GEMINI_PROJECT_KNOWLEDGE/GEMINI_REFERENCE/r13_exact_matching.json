@@ -1,0 +1,125 @@
+{
+  "experiment": "R1.3 exact vs greedy request pairing",
+  "reviewer_mapping": "R1.3",
+  "timestamp": "2026-09-02T11:34:22.929029+00:00",
+  "seed": 1313,
+  "mode": "adaptive",
+  "parameters": {
+    "pool_size": 14,
+    "threshold": 70.0,
+    "min_compatibility_score_key": "min_compatibility_score",
+    "graph": "request-pair compatibility graph",
+    "score_oracle": "CompatibilityCalculator.compute([a,b], db)",
+    "exact_method": "subset-DP maximum-weight matching (stdlib only)",
+    "greedy_method": "disjoint greedy on score-desc sorted pairs"
+  },
+  "graph_stats": {
+    "nodes": 14,
+    "pairs_evaluated": 91,
+    "feasible_edges": 44,
+    "rejected_by_threshold": 47,
+    "min_score_seen": 43.8,
+    "max_score_seen": 96.5
+  },
+  "greedy": {
+    "matched_pairs": 7,
+    "matched_requests": 14,
+    "unmatched_requests": 0,
+    "total_score": 611.7,
+    "avg_score": 87.39,
+    "pairs": [
+      {
+        "a": 5,
+        "b": 6,
+        "score": 96.5
+      },
+      {
+        "a": 3,
+        "b": 10,
+        "score": 91.7
+      },
+      {
+        "a": 4,
+        "b": 11,
+        "score": 91.7
+      },
+      {
+        "a": 8,
+        "b": 9,
+        "score": 90.1
+      },
+      {
+        "a": 13,
+        "b": 14,
+        "score": 85.3
+      },
+      {
+        "a": 7,
+        "b": 12,
+        "score": 78.9
+      },
+      {
+        "a": 1,
+        "b": 2,
+        "score": 77.5
+      }
+    ]
+  },
+  "exact": {
+    "matched_pairs": 7,
+    "matched_requests": 14,
+    "unmatched_requests": 0,
+    "total_score": 613.1,
+    "avg_score": 87.59,
+    "pairs": [
+      {
+        "a": 5,
+        "b": 6,
+        "score": 96.5
+      },
+      {
+        "a": 3,
+        "b": 9,
+        "score": 91.2
+      },
+      {
+        "a": 8,
+        "b": 10,
+        "score": 90.6
+      },
+      {
+        "a": 4,
+        "b": 12,
+        "score": 86.9
+      },
+      {
+        "a": 13,
+        "b": 14,
+        "score": 85.3
+      },
+      {
+        "a": 7,
+        "b": 11,
+        "score": 85.1
+      },
+      {
+        "a": 1,
+        "b": 2,
+        "score": 77.5
+      }
+    ]
+  },
+  "comparison": {
+    "total_score_greedy": 611.7,
+    "total_score_exact": 613.1,
+    "delta_score": 1.4,
+    "relative_improvement_pct": 0.23,
+    "matched_pairs_greedy": 7,
+    "matched_pairs_exact": 7,
+    "unmatched_greedy": 0,
+    "unmatched_exact": 0
+  },
+  "scope": "Pairing sub-problem ONLY. Uses the current CompatibilityCalculator score as the pair weight. Does NOT claim full routing / MILP / OR-Tools optimality; vehicles/drivers/routes are out of scope.",
+  "workload_limitation": "The exact solver is a subset-DP, exponential in pool size (O(2^N*N)); it was run on a small deterministic pool of 14 requests so it completes quickly. It does not scale to full workloads by design.",
+  "limitations": "Comparisons reflect the pairing step only; synthetic requests; not a human or field study."
+}

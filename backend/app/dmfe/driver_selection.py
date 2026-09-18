@@ -39,6 +39,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
 
+from sqlalchemy import func, case
 from sqlalchemy.orm import Session
 
 from app.core.json_utils import json_loads
@@ -345,64 +346,103 @@ class DriverSelector:
             )
             .all()
         )
+        # Fix 1: one combined aggregate query for both fleet totals (all statuses
+        # including Busy), replacing the two separate COUNT(*) calls.
+        # total_driver_count / total_vehicle_count must count the WHOLE fleet so
+        # Gate-E can distinguish fresh-install (0 ever seeded) from all-busy.
+        fleet_counts = db.query(
+            func.count(Driver.id).label("total_drivers"),
+            (db.query(func.count(Vehicle.id))
+               .filter(Vehicle.is_active.is_(True))
+               .scalar_subquery()),
+        ).one()
+        total_d = int(fleet_counts[0] or 0)
+        total_v = int(fleet_counts[1] or 0)
+        recent_counts, lifetime_counts, completed_counts = (
+            self._history_counts_combined(db, hours=24)
+        )
         return DriverPool(
             drivers=drivers,
             vehicles=vehicles,
-            total_driver_count=(
-                db.query(Driver).count()
-            ),
-            total_vehicle_count=(
-                db.query(Vehicle).count()
-            ),
+            total_driver_count=total_d,
+            total_vehicle_count=total_v,
             active_counts=self._active_trip_counts(db),
-            recent_counts=self._recent_assignment_counts(db, hours=24),
-            lifetime_counts=self._lifetime_assignment_counts(db),
-            completed_counts=self._completed_assignment_counts(db),
+            recent_counts=recent_counts,
+            lifetime_counts=lifetime_counts,
+            completed_counts=completed_counts,
             avg_utilization=self._avg_driver_utilization(db),
         )
 
-    def _recent_assignment_counts(self, db: Session, hours: float) -> Dict[int, int]:
-        """Assignments started in the last `hours` per driver (1 grouped query)."""
+    def _history_counts_combined(
+        self, db: Session, hours: float = 24.0
+    ) -> Tuple[Dict[int, int], Dict[int, int], Dict[int, int]]:
+        """
+        Single GROUP BY query that returns recent/lifetime/completed counts
+        per driver in one round-trip.
+
+        Replaces the three separate full-table scans previously issued by
+        _recent_assignment_counts, _lifetime_assignment_counts and
+        _completed_assignment_counts.  All three aggregations are done in
+        the database engine; only one summary row per driver is transferred
+        to Python.
+
+        Returns (recent_counts, lifetime_counts, completed_counts).
+        """
         cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
-        counts: Dict[int, int] = {}
+
         rows = (
-            db.query(DriverAssignmentHistory.driver_id)
-            .filter(
-                DriverAssignmentHistory.driver_id.isnot(None),
-                DriverAssignmentHistory.assignment_time >= cutoff,
+            db.query(
+                DriverAssignmentHistory.driver_id,
+                func.count().label("lifetime"),
+                func.sum(
+                    case((DriverAssignmentHistory.status == "Completed", 1), else_=0)
+                ).label("completed"),
+                func.sum(
+                    case((DriverAssignmentHistory.assignment_time >= cutoff, 1), else_=0)
+                ).label("recent"),
             )
+            .filter(DriverAssignmentHistory.driver_id.isnot(None))
+            .group_by(DriverAssignmentHistory.driver_id)
             .all()
         )
-        for (driver_id,) in rows:
-            counts[driver_id] = counts.get(driver_id, 0) + 1
-        return counts
+
+        recent: Dict[int, int] = {}
+        lifetime: Dict[int, int] = {}
+        completed: Dict[int, int] = {}
+        for driver_id, life, comp, rec in rows:
+            lifetime[driver_id] = int(life or 0)
+            completed[driver_id] = int(comp or 0)
+            recent[driver_id] = int(rec or 0)
+        return recent, lifetime, completed
+
+    # ── Preserved thin wrappers (keep external callers working) ──────────────
+
+    def _recent_assignment_counts(self, db: Session, hours: float = 24.0) -> Dict[int, int]:
+        """Assignments started in the last `hours` per driver.
+
+        Thin wrapper around _history_counts_combined; retained for any direct
+        callers outside build_pool.
+        """
+        recent, _lifetime, _completed = self._history_counts_combined(db, hours=hours)
+        return recent
 
     def _lifetime_assignment_counts(self, db: Session) -> Dict[int, int]:
-        """All-time assignment count per driver (1 grouped query)."""
-        counts: Dict[int, int] = {}
-        rows = (
-            db.query(DriverAssignmentHistory.driver_id)
-            .filter(DriverAssignmentHistory.driver_id.isnot(None))
-            .all()
-        )
-        for (driver_id,) in rows:
-            counts[driver_id] = counts.get(driver_id, 0) + 1
-        return counts
+        """All-time assignment count per driver.
+
+        Thin wrapper around _history_counts_combined; retained for any direct
+        callers outside build_pool.
+        """
+        _recent, lifetime, _completed = self._history_counts_combined(db)
+        return lifetime
 
     def _completed_assignment_counts(self, db: Session) -> Dict[int, int]:
-        """All-time Completed assignments per driver (1 grouped query)."""
-        counts: Dict[int, int] = {}
-        rows = (
-            db.query(DriverAssignmentHistory.driver_id)
-            .filter(
-                DriverAssignmentHistory.driver_id.isnot(None),
-                DriverAssignmentHistory.status == "Completed",
-            )
-            .all()
-        )
-        for (driver_id,) in rows:
-            counts[driver_id] = counts.get(driver_id, 0) + 1
-        return counts
+        """All-time Completed assignments per driver.
+
+        Thin wrapper around _history_counts_combined; retained for any direct
+        callers outside build_pool.
+        """
+        _recent, _lifetime, completed = self._history_counts_combined(db)
+        return completed
 
     def _avg_driver_utilization(self, db: Session) -> Dict[int, float]:
         """Average utilisation (%) of each driver's completed trips."""

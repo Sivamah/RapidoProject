@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Save, Scale, Layers, Search, Filter, RotateCcw } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
@@ -26,12 +26,26 @@ export default function ScenarioDashboard() {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveName, setSaveName] = useState('');
   const [saveScenario, setSaveScenario] = useState('Standard Baseline Run');
+  const [savingSnapshot, setSavingSnapshot] = useState(false);
+
+  // Debounce timer for search — prevents a full 3-endpoint refetch on every
+  // keystroke (mirrors the same fix in DriverDashboard.jsx).
+  const searchDebounceRef = useRef(null);
+  // The "effective" search value that actually drives API calls.
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // When the raw search input changes, wait 400 ms before applying it.
+  useEffect(() => {
+    clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(searchDebounceRef.current);
+  }, [search]);
 
   // Fetch all playback data
   const fetchData = useCallback(async () => {
     try {
       const params = new URLSearchParams();
-      if (search) params.append('search', search);
+      if (debouncedSearch) params.append('search', debouncedSearch);
       if (filterScenario !== 'All') params.append('scenario', filterScenario);
 
       const [overviewRes, simListRes, scenRes] = await Promise.all([
@@ -46,7 +60,7 @@ export default function ScenarioDashboard() {
     } catch (err) {
       console.error('Failed to fetch playback data:', err);
     }
-  }, [search, filterScenario]);
+  }, [debouncedSearch, filterScenario]);
 
   useEffect(() => {
     fetchData();
@@ -91,6 +105,8 @@ export default function ScenarioDashboard() {
 
   const handleConfirmSave = async (e) => {
     e.preventDefault();
+    if (savingSnapshot) return;
+    setSavingSnapshot(true);
     try {
       await api.post('/simulation/save-current', {
         name: saveName,
@@ -101,6 +117,8 @@ export default function ScenarioDashboard() {
       toast.success(`Simulation run '${saveName}' saved successfully`);
     } catch {
       toast.error('Failed to save current simulation run');
+    } finally {
+      setSavingSnapshot(false);
     }
   };
 
@@ -334,9 +352,10 @@ export default function ScenarioDashboard() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg"
+                  disabled={savingSnapshot}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Save Simulation
+                  {savingSnapshot ? 'Saving…' : 'Save Simulation'}
                 </button>
               </div>
             </form>

@@ -21,6 +21,7 @@ export default function ProviderManagement() {
   const [expanded, setExpanded] = useState({});
   const [showVehicleForm, setShowVehicleForm] = useState(null);
   const [seeding, setSeeding] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({ name: '', provider_type: 'Ride', description: '' });
   const [vform, setVform] = useState({ name: '', vehicle_type: 'Bike', capacity: 1, cost_per_km: 10, fuel_type: 'Petrol', mileage_kmpl: 15 });
 
@@ -56,6 +57,8 @@ export default function ProviderManagement() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
     try {
       if (editing) {
         await api.patch(`/providers/${editing}`, form);
@@ -70,6 +73,8 @@ export default function ProviderManagement() {
       fetchProviders();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to save');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -86,7 +91,8 @@ export default function ProviderManagement() {
 
   const handleVehicleSubmit = async (e) => {
     e.preventDefault();
-    if (!showVehicleForm) return;
+    if (!showVehicleForm || submitting) return;
+    setSubmitting(true);
     try {
       await api.post(`/providers/${showVehicleForm}/vehicles`, vform);
       toast.success('Vehicle added');
@@ -95,6 +101,8 @@ export default function ProviderManagement() {
       fetchProviders();
     } catch {
       toast.error('Failed to add vehicle');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -160,7 +168,7 @@ export default function ProviderManagement() {
                 <label className="block text-sm font-medium text-gray-300 mb-1">Description</label>
                 <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Optional description" />
               </div>
-              <button type="submit" className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors">{editing ? 'Update' : 'Create'} Provider</button>
+              <button type="submit" disabled={submitting} className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">{submitting ? 'Saving…' : `${editing ? 'Update' : 'Create'} Provider`}</button>
             </form>
           </div>
         </div>
@@ -194,7 +202,7 @@ export default function ProviderManagement() {
                   <input type="number" min="1" step="0.5" value={vform.cost_per_km} onChange={(e) => setVform({ ...vform, cost_per_km: parseFloat(e.target.value) || 10 })} className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
               </div>
-              <button type="submit" className="w-full py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors">Add Vehicle</button>
+              <button type="submit" disabled={submitting} className="w-full py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">{submitting ? 'Adding…' : 'Add Vehicle'}</button>
             </form>
           </div>
         </div>

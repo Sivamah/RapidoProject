@@ -22,6 +22,56 @@ class XAITimelineItem(BaseModel):
     description: str = ""
 
 
+class XAIRequestPoint(BaseModel):
+    """One request point the live map should highlight (pickup + drop)."""
+    request_id: int
+    request_type: str = "ride"
+    pickup_address: str = ""
+    drop_address: str = ""
+    pickup_lat: float = 0.0
+    pickup_lng: float = 0.0
+    drop_lat: float = 0.0
+    drop_lng: float = 0.0
+    priority: str = "Medium"
+
+
+class XAIDriverLink(BaseModel):
+    """Assigned driver snapshot for a dispatched trip."""
+    id: int
+    name: str = ""
+    current_lat: float = 0.0
+    current_lng: float = 0.0
+
+
+class XAIVehicleLink(BaseModel):
+    """Assigned vehicle snapshot for a dispatched trip."""
+    id: int
+    name: str = ""
+    vehicle_type: str = ""
+    current_lat: float = 0.0
+    current_lng: float = 0.0
+
+
+class XAIRouteStopPoint(BaseModel):
+    """One ordered stop of the optimized route (map polyline vertex)."""
+    request_id: int
+    action: str  # "pickup" | "drop"
+    lat: float = 0.0
+    lng: float = 0.0
+    arrival_min: float = 0.0
+
+
+class XAITripLink(BaseModel):
+    """Dispatched trip snapshot consumed by the live map highlight layer."""
+    trip_id: int
+    trip_code: str = ""
+    is_shared: bool = False
+    status: str = "Active"
+    driver: Optional[XAIDriverLink] = None
+    vehicle: Optional[XAIVehicleLink] = None
+    route_stops: List[XAIRouteStopPoint] = []
+
+
 class XAIExplanationItem(BaseModel):
     id: int
     request_id: int
@@ -35,6 +85,13 @@ class XAIExplanationItem(BaseModel):
     confidence_score: float = 90.0
     pickup_address: str = ""
     drop_address: str = ""
+    pickup_lat: float = 0.0
+    pickup_lng: float = 0.0
+    drop_lat: float = 0.0
+    drop_lng: float = 0.0
+    key_reasons: List[str] = []
+    related_requests: List[XAIRequestPoint] = []
+    trip: Optional[XAITripLink] = None
     estimated_distance_km: float = 0.0
     factors: XAIFactors
     timeline: List[XAITimelineItem] = []
@@ -45,6 +102,19 @@ class XAIExplanationItem(BaseModel):
     distance_saved_km: float = 0.0
     driver_profit_inr: float = 0.0
     trip_code: Optional[str] = None
+    # Real ₹ cost of this trip as actually dispatched (combined when shared,
+    # individual otherwise), and what running the same requests as separate
+    # individual trips would have cost at the same per-km rate the optimizer
+    # used. Both copied straight from values already computed/stored at
+    # dispatch time — see xai_service._trip_metrics.
+    trip_cost_inr: float = 0.0
+    separate_cost_inr: float = 0.0
+    # Profit if these requests had been run as separate individual trips,
+    # using the SAME revenue/fuel-cost formula as driver_profit_inr (see
+    # xai_service._trip_metrics) applied to the pre-batching distance/fuel
+    # instead of the actual dispatched trip's — lets the UI show a real
+    # solo-vs-combined profit comparison without a second pricing model.
+    solo_profit_inr: float = 0.0
 
     class Config:
         from_attributes = True

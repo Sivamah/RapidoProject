@@ -1,0 +1,151 @@
+{
+  "workloads": [
+    100,
+    150,
+    250
+  ],
+  "reps": 3,
+  "aggregates": {
+    "100": {
+      "dmfe_eval_time_s": {
+        "mean": 0.507,
+        "min": 0.194,
+        "max": 0.683
+      },
+      "batch_formation_time_s": {
+        "mean": 0.646,
+        "min": 0.244,
+        "max": 0.866
+      },
+      "dispatch_time_s": {
+        "mean": 0.797,
+        "min": 0.373,
+        "max": 1.049
+      },
+      "pipeline_total_time_s": {
+        "mean": 3.728,
+        "min": 1.615,
+        "max": 4.848
+      },
+      "compat_pairs_evaluated": {
+        "mean": 2044.667,
+        "min": 1895.0,
+        "max": 2126.0
+      },
+      "batches_created": {
+        "mean": 42.0,
+        "min": 42.0,
+        "max": 42.0
+      },
+      "dispatched_trips": {
+        "mean": 54.333,
+        "min": 54.0,
+        "max": 55.0
+      },
+      "unassigned_requests": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "database_queries": {
+        "mean": 4835.0,
+        "min": 4826.0,
+        "max": 4853.0
+      }
+    },
+    "150": {
+      "dmfe_eval_time_s": {
+        "mean": 1.258,
+        "min": 1.113,
+        "max": 1.332
+      },
+      "batch_formation_time_s": {
+        "mean": 1.666,
+        "min": 1.48,
+        "max": 1.764
+      },
+      "dispatch_time_s": {
+        "mean": 1.412,
+        "min": 1.354,
+        "max": 1.454
+      },
+      "pipeline_total_time_s": {
+        "mean": 6.428,
+        "min": 6.368,
+        "max": 6.509
+      },
+      "compat_pairs_evaluated": {
+        "mean": 4520.333,
+        "min": 3799.0,
+        "max": 5033.0
+      },
+      "batches_created": {
+        "mean": 65.333,
+        "min": 63.0,
+        "max": 68.0
+      },
+      "dispatched_trips": {
+        "mean": 59.667,
+        "min": 59.0,
+        "max": 60.0
+      },
+      "unassigned_requests": {
+        "mean": 22.0,
+        "min": 20.0,
+        "max": 23.0
+      },
+      "database_queries": {
+        "mean": 5515.667,
+        "min": 5485.0,
+        "max": 5551.0
+      }
+    },
+    "250": {
+      "dmfe_eval_time_s": {
+        "mean": 2.318,
+        "min": 1.204,
+        "max": 3.013
+      },
+      "batch_formation_time_s": {
+        "mean": 3.265,
+        "min": 1.72,
+        "max": 4.325
+      },
+      "dispatch_time_s": {
+        "mean": 1.869,
+        "min": 1.007,
+        "max": 2.375
+      },
+      "pipeline_total_time_s": {
+        "mean": 8.331,
+        "min": 4.426,
+        "max": 10.948
+      },
+      "compat_pairs_evaluated": {
+        "mean": 13908.667,
+        "min": 13067.0,
+        "max": 14728.0
+      },
+      "batches_created": {
+        "mean": 116.0,
+        "min": 115.0,
+        "max": 117.0
+      },
+      "dispatched_trips": {
+        "mean": 60.0,
+        "min": 60.0,
+        "max": 60.0
+      },
+      "unassigned_requests": {
+        "mean": 73.0,
+        "min": 72.0,
+        "max": 75.0
+      },
+      "database_queries": {
+        "mean": 6972.0,
+        "min": 6941.0,
+        "max": 7013.0
+      }
+    }
+  }
+}

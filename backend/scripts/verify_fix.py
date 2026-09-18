@@ -36,6 +36,8 @@ if not token:
 headers = {"Authorization": f"Bearer {token}"}
 print(f"Auth token obtained: {token[:20]}...")
 
+overall_failed = False
+
 # ==============================================================================
 # Step 3.3 -- POST /api/dmfe/analyze on freed fleet
 # ==============================================================================
@@ -272,6 +274,7 @@ if test_driver and test_vehicle:
         print("[PASS] Stale trip auto-released by run_analysis() -- driver and vehicle freed!")
     else:
         print("[FAIL] Stale trip was NOT released by the new code path")
+        overall_failed = True
 else:
     print("SKIP: No available driver/vehicle for stale trip test")
 
@@ -280,3 +283,8 @@ db.close()
 print("\n" + "=" * 70)
 print("ALL VERIFICATION STEPS COMPLETE")
 print("=" * 70)
+
+if overall_failed:
+    print("\n[FAIL] One or more verification steps failed -- see [FAIL] lines above.")
+    sys.exit(1)
+sys.exit(0)

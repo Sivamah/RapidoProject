@@ -57,5 +57,22 @@ print(f"Demo batches total: {len(b2)}")
 for i, b in enumerate(b2):
     print(f"  Demo batch {i}: {b['batch_code']} containing {b['request_ids']}")
 
+# 8. Exit-code gating: fail if demo_only filtering didn't actually isolate the seeded demo data
+failed = False
+demo_prefix = "[A-DMFE Demo Scenario]"
+if q2.get('total', 0) < len(demo_reqs):
+    print(f"[FAIL] Expected at least {len(demo_reqs)} demo-tagged requests in demo queue, got {q2.get('total', 0)}")
+    failed = True
+if any(not item.get('pickup_address', '').startswith(demo_prefix) for item in q2.get('items', [])):
+    print("[FAIL] Demo queue (demo_only=true) contained a non-demo-tagged item")
+    failed = True
+if r_analyze.get('batches_created', 0) > 0 and len(b2) == 0:
+    print("[FAIL] Batches were created but none appear in the demo-filtered batch list")
+    failed = True
+
 db.close()
+if failed:
+    print("Verification FAILED.")
+    sys.exit(1)
 print("Verification complete.")
+sys.exit(0)

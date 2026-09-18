@@ -1,0 +1,233 @@
+{
+  "stats": {
+    ".git": {
+      "count": 880,
+      "size": 3525877
+    },
+    "backend/.venv": {
+      "count": 12371,
+      "size": 374950484
+    },
+    "frontend/node_modules": {
+      "count": 13878,
+      "size": 176998799
+    },
+    "__pycache__": {
+      "count": 110,
+      "size": 1462291
+    },
+    ".pytest_cache": {
+      "count": 5,
+      "size": 6063
+    },
+    "dist/build/.vite": {
+      "count": 68,
+      "size": 1635329
+    },
+    "database files": {
+      "count": 3,
+      "size": 43421696
+    },
+    "database WAL/SHM": {
+      "count": 3,
+      "size": 8849632
+    },
+    "datasets": {
+      "count": 0,
+      "size": 0
+    },
+    "screenshots": {
+      "count": 0,
+      "size": 0
+    },
+    "QA artifacts": {
+      "count": 6,
+      "size": 81698
+    },
+    "logs": {
+      "count": 2,
+      "size": 65509
+    },
+    "archive": {
+      "count": 15,
+      "size": 117090
+    },
+    "temporary files": {
+      "count": 4,
+      "size": 131072
+    },
+    "generated files": {
+      "count": 27,
+      "size": 656340
+    },
+    "other": {
+      "count": 230,
+      "size": 3626451
+    }
+  },
+  "largest_files": [
+    [
+      34522112,
+      "backend\\.venv\\Lib\\site-packages\\ortools\\.libs\\ortools.dll"
+    ],
+    [
+      32350208,
+      "backend\\dmfe_dev.db"
+    ],
+    [
+      20510208,
+      "frontend\\node_modules\\@rolldown\\binding-win32-x64-msvc\\rolldown-binding.win32-x64-msvc.node"
+    ],
+    [
+      20405760,
+      "backend\\.venv\\Lib\\site-packages\\numpy.libs\\libscipy_openblas64_-b788215d9d47792bcba3a2e2a7114320.dll"
+    ],
+    [
+      14860800,
+      "frontend\\node_modules\\@oxlint\\binding-win32-x64-msvc\\oxlint.win32-x64-msvc.node"
+    ],
+    [
+      13575168,
+      "backend\\.venv\\Lib\\site-packages\\ortools\\.libs\\libprotobuf.dll"
+    ],
+    [
+      12801536,
+      "backend\\.venv\\Lib\\site-packages\\ortools\\.libs\\libscip.dll"
+    ],
+    [
+      11067392,
+      "backend\\qa_test.db"
+    ],
+    [
+      9907712,
+      "backend\\.venv\\Lib\\site-packages\\cryptography\\hazmat\\bindings\\_rust.pyd"
+    ],
+    [
+      9497600,
+      "frontend\\node_modules\\lightningcss-win32-x64-msvc\\lightningcss.win32-x64-msvc.node"
+    ],
+    [
+      8519168,
+      "backend\\.venv\\Lib\\site-packages\\ortools\\.libs\\highs.dll"
+    ],
+    [
+      7890432,
+      "backend\\.venv\\Lib\\site-packages\\PIL\\_avif.cp314-win_amd64.pyd"
+    ],
+    [
+      6239581,
+      "frontend\\node_modules\\@napi-rs\\wasm-runtime\\dist\\fs.js"
+    ],
+    [
+      5764880,
+      "frontend\\node_modules\\lucide-react\\dist\\cjs\\lucide-react.js.map"
+    ],
+    [
+      5331968,
+      "backend\\.venv\\Lib\\site-packages\\psycopg2_binary.libs\\libcrypto-3-x64-a541aa02e9207ebe82a6024a9b4cbecb.dll"
+    ],
+    [
+      5261824,
+      "backend\\.venv\\Lib\\site-packages\\pydantic_core\\_pydantic_core.cp314-win_amd64.pyd"
+    ],
+    [
+      4461992,
+      "backend\\dmfe_dev.db-wal"
+    ],
+    [
+      4354872,
+      "backend\\qa_test.db-wal"
+    ],
+    [
+      3904512,
+      "backend\\.venv\\Lib\\site-packages\\numpy\\_core\\_multiarray_umath.cp314-win_amd64.pyd"
+    ],
+    [
+      3190272,
+      "frontend\\node_modules\\@tailwindcss\\oxide-win32-x64-msvc\\tailwindcss-oxide.win32-x64-msvc.node"
+    ]
+  ],
+  "largest_dirs": [
+    [
+      "backend\\.venv\\Lib\\site-packages\\ortools\\.libs",
+      72915968
+    ],
+    [
+      "backend",
+      52476788
+    ],
+    [
+      "backend\\.venv\\Lib\\site-packages\\numpy.libs",
+      20980816
+    ],
+    [
+      "frontend\\node_modules\\@rolldown\\binding-win32-x64-msvc",
+      20511098
+    ],
+    [
+      "frontend\\node_modules\\.vite\\deps",
+      14939612
+    ],
+    [
+      "frontend\\node_modules\\@oxlint\\binding-win32-x64-msvc",
+      14861646
+    ],
+    [
+      "backend\\.venv\\Lib\\site-packages\\PIL",
+      14629689
+    ],
+    [
+      "backend\\.venv\\Lib\\site-packages\\cryptography\\hazmat\\bindings",
+      9907892
+    ],
+    [
+      "backend\\.venv\\Lib\\site-packages\\pandas\\_libs",
+      9845001
+    ],
+    [
+      "frontend\\node_modules\\lightningcss-win32-x64-msvc",
+      9514088
+    ],
+    [
+      "frontend\\node_modules\\lucide-react",
+      9383621
+    ],
+    [
+      "backend\\.venv\\Lib\\site-packages\\matplotlib",
+      8259200
+    ],
+    [
+      "backend\\.venv\\Lib\\site-packages\\matplotlib\\mpl-data\\fonts\\ttf",
+      7520604
+    ],
+    [
+      "frontend\\node_modules\\react-dom\\cjs",
+      7305668
+    ],
+    [
+      "frontend\\node_modules\\lucide-react\\dist\\esm\\icons",
+      7296073
+    ],
+    [
+      "frontend\\node_modules\\lucide-react\\dist\\cjs",
+      6724288
+    ],
+    [
+      "frontend\\node_modules\\lucide-react\\dist",
+      6572406
+    ],
+    [
+      "backend\\.venv\\Lib\\site-packages\\psycopg2_binary.libs",
+      6538240
+    ],
+    [
+      "frontend\\node_modules\\@napi-rs\\wasm-runtime\\dist",
+      6248231
+    ],
+    [
+      "backend\\.venv\\Lib\\site-packages\\numpy\\_core",
+      6225504
+    ]
+  ],
+  "git_tracked_count": 270
+}

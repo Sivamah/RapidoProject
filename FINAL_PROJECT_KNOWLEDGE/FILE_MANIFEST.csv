@@ -1,0 +1,260 @@
+path,category,status,purpose,optimization_priority,cleanup_action,confidence
+backend/app/dmfe/__init__.py,backend-core-dmfe,ACTIVE,package marker,P0-protected (no changes without approval),KEEP,high
+backend/app/dmfe/compatibility.py,backend-core-dmfe,ACTIVE,5-factor compatibility scoring (CompatibilityCalculator),P0-protected (no changes without approval),KEEP,high
+backend/app/dmfe/scoring.py,backend-core-dmfe,ACTIVE,scoring support utilities,P0-protected (no changes without approval),KEEP,high
+backend/app/dmfe/score_engine.py,backend-core-dmfe,ACTIVE,unified score engine,P0-protected (no changes without approval),KEEP,high
+backend/app/dmfe/decision_engine.py,backend-core-dmfe,ACTIVE,DecisionEngine.run_analysis - manual analysis trigger,P0-protected (no changes without approval),KEEP,high
+backend/app/dmfe/optimizer.py,backend-core-dmfe,ACTIVE,OR-Tools PDP route optimizer (RouteOptimizer),P0-protected (no changes without approval),KEEP,high
+backend/app/dmfe/driver_selection.py,backend-core-dmfe,ACTIVE,dispatch_trip/complete_trip/complete_stale_trips,P0-protected (no changes without approval),KEEP,high
+backend/app/dmfe/pipeline.py,backend-core-dmfe,ACTIVE,PipelineRunner.run - end to end orchestrator,P0-protected (no changes without approval),KEEP,high
+backend/app/dmfe/batch_generator.py,backend-core-dmfe,ACTIVE,BatchGenerator - static+adaptive batching,P0-protected (no changes without approval),KEEP,high
+backend/app/dmfe/serializers.py,backend-core-dmfe,ACTIVE,batch_to_dict and related serialization,P0-protected (no changes without approval),KEEP,high
+backend/app/dmfe/models.py,backend-core-dmfe,ACTIVE,DMFEBatch etc. ORM models,P0-protected (no changes without approval),KEEP,high
+backend/app/dmfe/adaptive/__init__.py,backend-core-dmfe-adaptive,ACTIVE,package marker,P0-protected (no changes without approval),KEEP,high
+backend/app/dmfe/adaptive/_util.py,backend-core-dmfe-adaptive,ACTIVE,adaptive shared helpers,P0-protected (no changes without approval),KEEP,high
+backend/app/dmfe/adaptive/batching.py,backend-core-dmfe-adaptive,ACTIVE,adaptive batching support,P0-protected (no changes without approval),KEEP,high
+backend/app/dmfe/adaptive/context.py,backend-core-dmfe-adaptive,ACTIVE,"ContextAwarenessEngine.build - duplicated per run, see P1-1",P1 (see roadmap P1-1/P1-2),KEEP,high
+backend/app/dmfe/adaptive/decision.py,backend-core-dmfe-adaptive,ACTIVE,effective_threshold logic,P0-protected (no changes without approval),KEEP,high
+backend/app/dmfe/adaptive/factors.py,backend-core-dmfe-adaptive,ACTIVE,adaptive factor weighting,P0-protected (no changes without approval),KEEP,high
+backend/app/dmfe/adaptive/learning.py,backend-core-dmfe-adaptive,ACTIVE,"LearningEngine.load_state - re-read 3x, see P1-2",P1 (see roadmap P1-1/P1-2),KEEP,high
+backend/app/dmfe/adaptive/matrix.py,backend-core-dmfe-adaptive,ACTIVE,adaptive distance/congestion matrix,P0-protected (no changes without approval),KEEP,high
+backend/app/dmfe/adaptive/weights.py,backend-core-dmfe-adaptive,ACTIVE,AdaptiveWeightGenerator,P0-protected (no changes without approval),KEEP,high
+backend/app/dmfe/adaptive/xai.py,backend-core-dmfe-adaptive,ACTIVE,adaptive XAI support,P0-protected (no changes without approval),KEEP,high
+backend/app/engine/__init__.py,backend-engine,ACTIVE,package marker for app.engine,none,KEEP,high
+backend/app/engine/distance.py,backend-engine,ACTIVE,canonical haversine() used throughout dmfe/,none,KEEP,high
+backend/app/engine/optimizer.py,backend-engine,"DELETED (corrected 2026-09-13, was stale ACTIVE)","legacy AIOrchestrator -- file deleted, POST /api/orchestration/optimize now returns HTTP 410","none (moot, file gone)",N/A,high
+backend/app/engine/explainability.py,backend-engine,CONFIRMED DEAD,"superseded legacy explanation generator, zero references",P2 (P2-5),DELETE CANDIDATE,high
+backend/app/api/routes/auth.py,backend-api,ACTIVE,login/profile endpoints,none,KEEP,high
+backend/app/api/routes/config.py,backend-api,ACTIVE,system config CRUD,none,KEEP,high
+backend/app/api/routes/dashboard.py,backend-api,ACTIVE,dashboard aggregate stats,none,KEEP,high
+backend/app/api/routes/dmfe_engine.py,backend-api,ACTIVE,granular per-stage pipeline API (not called by frontend),none,KEEP,high
+backend/app/api/routes/dmfe_v2.py,backend-api,ACTIVE,analyze/batches/history/statistics - the endpoint the UI's Run Analysis button uses,none,KEEP,high
+backend/app/api/routes/drivers.py,backend-api,ACTIVE,driver/vehicle CRUD + assignment history,none,KEEP,high
+backend/app/api/routes/notifications.py,backend-api,ACTIVE,notification CRUD,none,KEEP,high
+backend/app/api/routes/orchestration.py,backend-api,ACTIVE,"simulate requests, dataset upload, legacy optimize",none,KEEP,high
+backend/app/api/routes/playback.py,backend-api,ACTIVE,saved simulation playback,none,KEEP,high
+backend/app/api/routes/providers.py,backend-api,ACTIVE,provider CRUD,none,KEEP,high
+backend/app/api/routes/simulation.py,backend-api,ACTIVE,simulation engine start/stop/status/analytics,none,KEEP,high
+backend/app/api/routes/xai.py,backend-api,ACTIVE,XAI explanation endpoints,none,KEEP,high
+backend/app/api/routes/__init__.py,backend-api,ACTIVE,package marker,none,KEEP,high
+backend/app/api/deps.py,backend-api,ACTIVE,shared FastAPI dependencies,none,KEEP,high
+backend/app/api/__init__.py,backend-api,ACTIVE,package marker,none,KEEP,high
+backend/app/services/config_service.py,backend-services,ACTIVE,"ConfigService.update_configs - per-key query loop, see P2-1",P2 (P2-1),KEEP,high
+backend/app/services/driver_service.py,backend-services,ACTIVE,"driver/vehicle list services - full table scans, see P2-1",P2 (P2-1),KEEP,high
+backend/app/services/mock_adapters.py,backend-services,ACTIVE,synthetic request/fleet generation,none,KEEP,high
+backend/app/services/notification_service.py,backend-services,ACTIVE,"log_system_notification - commit per call, see P2-1",P2 (P2-1),KEEP,high
+backend/app/services/playback_service.py,backend-services,ACTIVE,saved simulation snapshot logic,none,KEEP,high
+backend/app/services/simulation_service.py,backend-services,ACTIVE,SimulationEngine background loop - the real dispatch trigger,none,KEEP,high
+backend/app/services/xai_service.py,backend-services,ACTIVE,XAI explanation generation + trip economics (_trip_metrics),P1 (P1-3),KEEP,high
+backend/app/services/__init__.py,backend-services,ACTIVE,package marker,none,KEEP,high
+backend/app/db/database.py,backend-db,ACTIVE,SQLAlchemy session/engine setup,none,KEEP,high
+backend/app/db/models.py,backend-db,ACTIVE,ORM schema (protected),P0-protected (schema),KEEP,high
+backend/app/db/__init__.py,backend-db,ACTIVE,package marker,none,KEEP,high
+backend/app/core/coimbatore.py,backend-core,ACTIVE,core utility module,none,KEEP,high
+backend/app/core/config.py,backend-core,ACTIVE,core utility module,none,KEEP,high
+backend/app/core/json_utils.py,backend-core,ACTIVE,core utility module,none,KEEP,high
+backend/app/core/middleware.py,backend-core,ACTIVE,core utility module,none,KEEP,high
+backend/app/core/security.py,backend-core,ACTIVE,core utility module,P0-protected (auth),KEEP,high
+backend/app/core/__init__.py,backend-core,ACTIVE,package marker,none,KEEP,high
+backend/app/schemas/auth.py,backend-schemas,ACTIVE,Pydantic request/response contracts,none,KEEP,high
+backend/app/schemas/config.py,backend-schemas,ACTIVE,Pydantic request/response contracts,none,KEEP,high
+backend/app/schemas/driver.py,backend-schemas,ACTIVE,Pydantic request/response contracts,none,KEEP,high
+backend/app/schemas/notification.py,backend-schemas,ACTIVE,Pydantic request/response contracts,none,KEEP,high
+backend/app/schemas/orchestration.py,backend-schemas,ACTIVE,Pydantic request/response contracts,none,KEEP,high
+backend/app/schemas/playback.py,backend-schemas,ACTIVE,Pydantic request/response contracts,none,KEEP,high
+backend/app/schemas/provider.py,backend-schemas,ACTIVE,Pydantic request/response contracts,none,KEEP,high
+backend/app/schemas/simulation.py,backend-schemas,ACTIVE,Pydantic request/response contracts,none,KEEP,high
+backend/app/schemas/xai.py,backend-schemas,ACTIVE,Pydantic request/response contracts,none,KEEP,high
+backend/app/schemas/__init__.py,backend-schemas,ACTIVE,package marker,none,KEEP,high
+backend/app/main.py,backend-core,ACTIVE,"FastAPI app factory, router mounts, schema sync",none,KEEP,high
+backend/app/__init__.py,backend-core,ACTIVE,package marker,none,KEEP,high
+backend/tests/conftest.py,backend-tests,ACTIVE,pytest-discovered regression test,none,KEEP,high
+backend/tests/test_compatibility.py,backend-tests,ACTIVE,pytest-discovered regression test,none,KEEP,high
+backend/tests/test_datasets_upload.py,backend-tests,ACTIVE,pytest-discovered regression test,none,KEEP,high
+backend/tests/test_driver_selection.py,backend-tests,ACTIVE,pytest-discovered regression test,none,KEEP,high
+backend/tests/test_learning_engine.py,backend-tests,ACTIVE,pytest-discovered regression test,none,KEEP,high
+backend/tests/test_learning_phase4.py,backend-tests,ACTIVE,pytest-discovered regression test,none,KEEP,high
+backend/tests/test_learning_phase4_1.py,backend-tests,ACTIVE,pytest-discovered regression test,none,KEEP,high
+backend/tests/test_pipeline_accounting.py,backend-tests,ACTIVE,pytest-discovered regression test,none,KEEP,high
+backend/tests/test_qa_controlled.py,backend-tests,ACTIVE,pytest-discovered regression test,none,KEEP,high
+backend/tests/test_scoring_unified.py,backend-tests,ACTIVE,pytest-discovered regression test,none,KEEP,high
+backend/tests/test_xai_map_link.py,backend-tests,ACTIVE,pytest-discovered regression test,none,KEEP,high
+backend/tests/test_xai_static_mode.py,backend-tests,ACTIVE,pytest-discovered regression test,none,KEEP,high
+backend/scripts/run_dev.sh,backend-scripts,ACTIVE,dev server launcher,none,KEEP,high
+backend/scripts/run_qa.sh,backend-scripts,ACTIVE,QA-DB server launcher,none,KEEP,high
+backend/scripts/check_results_consistency.py,backend-scripts,ACTIVE,"verifies evaluation result invariants, documented in docs/METRIC_DEFINITIONS.md",none,KEEP,high
+backend/scripts/verify_all.py,backend-scripts,ACTIVE,24-check manual verification suite,none,KEEP,high
+backend/scripts/verify_demo.py,backend-scripts,ACTIVE,demo-mode verification,none,KEEP,high
+backend/scripts/verify_xai_map.py,backend-scripts,ACTIVE,XAI map linkage verification,none,KEEP,high
+backend/scripts/api_test.py,backend-scripts,CONFIRMED DEAD,"one-off manual API smoke test, no references",P2 (P2-5),ARCHIVE,high
+backend/scripts/check_status.py,backend-scripts,CONFIRMED DEAD,"one-off debug script, no references",P2 (P2-5),ARCHIVE,high
+backend/scripts/debug_stale.py,backend-scripts,CONFIRMED DEAD,"one-off debug script, no references",P2 (P2-5),ARCHIVE,high
+backend/scripts/test_stale_release.py,backend-scripts,CONFIRMED DEAD,"named test_* but lives outside pytest testpaths, one-off",P2 (P2-5),ARCHIVE,high
+backend/scripts/verify_fix.py,backend-scripts,CONFIRMED DEAD,"one-off verification script, superseded by verify_* suite",P2 (P2-5),ARCHIVE,high
+backend/evaluation/framework.py,backend-evaluation,ACTIVE,shared WorkloadRunner harness used by all reviewer-point scripts,none,KEEP,high
+backend/evaluation/run_admfe_experiments.py,backend-evaluation,ACTIVE,documented experiment runner,none,KEEP,high
+backend/evaluation/make_admfe_report.py,backend-evaluation,ACTIVE,report generator,none,KEEP,high
+backend/evaluation/verify_admfe.py,backend-evaluation,ACTIVE,verification suite,none,KEEP,high
+backend/evaluation/final_validation.py,backend-evaluation,ACTIVE,documented final validation runner,none,KEEP,high
+backend/evaluation/verify_unified_scoring.py,backend-evaluation,ACTIVE,"unified scoring verification, regenerates unified_validation.json",none,KEEP,high
+backend/evaluation/acceptance_r15.py,backend-evaluation,ACTIVE,R1.5 reviewer-point experiment - VERIFIED,none,KEEP,high
+backend/evaluation/exact_matching_baseline.py,backend-evaluation,ACTIVE,R1.3 reviewer-point experiment (pairing) - VERIFIED,none,KEEP,high
+backend/evaluation/per_service_breakdown.py,backend-evaluation,ACTIVE,"R1.4 reviewer-point experiment - script/result MISMATCH, see P0-3",P0 (P0-3),KEEP,high
+backend/evaluation/robustness_r11.py,backend-evaluation,ACTIVE,R1.1 reviewer-point experiment - VERIFIED,none,KEEP,high
+backend/evaluation/time_window_sensitivity_r21.py,backend-evaluation,ACTIVE,"R2.1 reviewer-point experiment - script/result MISMATCH, see P0-3",P0 (P0-3),KEEP,high
+backend/evaluation/joint_optimization_baseline.py,backend-evaluation,ACTIVE,R1.3 sibling experiment (routing/assignment) - VERIFIED,none,KEEP,high
+backend/evaluation/joint_optimization_worker.py,backend-evaluation,ACTIVE,OR-Tools subprocess worker invoked by joint_optimization_baseline.py,none,KEEP,high
+backend/evaluation/analyze_unified.py,backend-evaluation,ACTIVE,"reads unified_validation.json, part of maintained toolchain",none,KEEP,high
+backend/evaluation/benchmark_scalability.py,backend-evaluation,ACTIVE,scalability benchmark at 100/150/250-request workloads,none,KEEP,high
+backend/evaluation/phase8_validation.py,backend-evaluation,ACTIVE,produces learning_validation.md / xai_validation.md,none,KEEP,high
+backend/evaluation/run_feedforward.py,backend-evaluation,ACTIVE,Phase 4.1 feed-forward verification,none,KEEP,high
+backend/evaluation/ADMFE_EXPERIMENT_REPORT.md,backend-evaluation-docs,ACTIVE,evaluation documentation,none,KEEP,medium
+backend/evaluation/DEBUG_REPORT.md,backend-evaluation-docs,ACTIVE,evaluation documentation,none,KEEP,medium
+backend/evaluation/README.md,backend-evaluation-docs,ACTIVE,evaluation documentation,none,KEEP,medium
+backend/evaluation/REVIEWER_EVIDENCE_REPORT.md,backend-evaluation-docs,ACTIVE,evaluation documentation,P0 (P0-3),KEEP,medium
+backend/evaluation/results/r11_robustness.json,backend-evaluation-results,ACTIVE (data artifact),"R1.1 result - VERIFIED, matches script and docs",none,KEEP,medium
+backend/evaluation/results/r13_exact_matching.json,backend-evaluation-results,ACTIVE (data artifact),R1.3a result - VERIFIED,none,KEEP,medium
+backend/evaluation/results/r13_joint_optimization.json,backend-evaluation-results,ACTIVE (data artifact),R1.3b result - VERIFIED,none,KEEP,medium
+backend/evaluation/results/r14_per_service.json,backend-evaluation-results,ACTIVE (data artifact),"R1.4 result - single N=60 run, real, but does not match current multi-workload script",none,KEEP,medium
+backend/evaluation/results/r15_acceptance.json,backend-evaluation-results,ACTIVE (data artifact),R1.5 result - VERIFIED,none,KEEP,medium
+backend/evaluation/results/r21_time_window.json,backend-evaluation-results,ACTIVE (data artifact),"R2.1 result - single N=60 run, real, but does not match current multi-workload script",none,KEEP,medium
+backend/evaluation/results/scalability_benchmark_100_150_250.json,backend-evaluation-results,ACTIVE (data artifact),scalability benchmark result,none,KEEP,medium
+backend/evaluation/results/admfe_static_experiments.json,backend-evaluation-results,ACTIVE (data artifact),static-mode experiment result,none,KEEP,medium
+backend/evaluation/results/research_summary.md,backend-evaluation-results,ACTIVE (data artifact),research summary doc,none,KEEP,medium
+backend/evaluation/results/validation_report.md,backend-evaluation-results,ACTIVE (data artifact),validation report doc,none,KEEP,medium
+backend/evaluation/results/xai_validation.md,backend-evaluation-results,ACTIVE (data artifact),XAI validation doc,none,KEEP,medium
+backend/evaluation/results/learning_validation.md,backend-evaluation-results,ACTIVE (data artifact),learning engine validation doc,none,KEEP,medium
+backend/evaluation/results/performance_profile.md,backend-evaluation-results,ACTIVE (data artifact),performance profile doc,none,KEEP,medium
+backend/evaluation/results/final_improvement_summary.md,backend-evaluation-results,ACTIVE (data artifact),improvement summary doc,none,KEEP,medium
+backend/evaluation/results/final_metrics_table.md,backend-evaluation-results,ACTIVE (data artifact),metrics table doc,none,KEEP,medium
+backend/evaluation/results/ieee_tables.md,backend-evaluation-results,ACTIVE (data artifact),IEEE paper table export,none,KEEP,medium
+backend/migrations/001_dmfe_batch_predicted_utilization.py,backend-migrations,ACTIVE,manual/CI migration for non-SQLite prod DBs,none,KEEP,high
+backend/seed_users.py,backend-scripts,PROBABLY DEAD,"manual test-user seeding utility, no references found",P3 (P3-6),UNCERTAIN,medium
+e2e_test.py,root-scripts,ACTIVE,documented API smoke test (README.md),none,KEEP,high
+backend/requirements.txt,backend-config,ACTIVE,Python dependencies,none,KEEP,high
+backend/pytest.ini,backend-config,ACTIVE,"pytest config, testpaths=tests",none,KEEP,high
+backend/render.yaml,backend-config,ACTIVE,Render.com deploy config,none,KEEP,medium
+backend/Procfile,backend-config,ACTIVE,process launch config,none,KEEP,medium
+backend/.env.example,backend-config,ACTIVE,example environment variables,none,KEEP,medium
+backend/.env,backend-config,ACTIVE (secret - not analyzed),"real environment variables, contains secrets",none,KEEP (never expose contents),high
+backend/VERIFY_RESULTS.md,backend-docs,ACTIVE,verification results doc,none,KEEP,medium
+frontend/src/App.jsx,frontend-core,BROKEN (imports missing file),router root - imports nonexistent AnimatedBackground,P0 (P0-1),KEEP (fix import),high
+frontend/src/main.jsx,frontend-core,ACTIVE,Vite entry point,none,KEEP,high
+frontend/src/index.css,frontend-core,ACTIVE,global styles / Tailwind entry,none,KEEP,high
+frontend/src/setupTests.js,frontend-core,"ACTIVE (scaffold, unused)","test setup scaffold, no test files exist","P2 (P2-7, testing gap)",KEEP,medium
+frontend/src/context/AuthContext.jsx,frontend-context,ACTIVE,auth state provider,P3 (P3-4),KEEP,high
+frontend/src/services/api.js,frontend-services,ACTIVE,shared axios client with cache+dedup,none,KEEP,high
+frontend/src/pages/AnalyticsDashboard.jsx,frontend-pages,BROKEN (missing imports),page component,P0 (P0-2) - 5 missing components,KEEP (fix imports),high
+frontend/src/pages/DMFEDashboard.jsx,frontend-pages,BROKEN (missing imports),page component,P0 (P0-2) - 3 missing components,KEEP (fix imports),high
+frontend/src/pages/DriverDashboard.jsx,frontend-pages,BROKEN (missing imports),page component,P0 (P0-2) - entire components/drivers/ missing,KEEP (fix imports),high
+frontend/src/pages/SystemConfiguration.jsx,frontend-pages,BROKEN (missing imports),page component,P0 (P0-2) - entire components/config/ missing,KEEP (fix imports),high
+frontend/src/pages/NotificationCenter.jsx,frontend-pages,BROKEN (missing imports),page component,P0 (P0-2) - 3 missing components,KEEP (fix imports),high
+frontend/src/pages/ScenarioDashboard.jsx,frontend-pages,BROKEN (missing imports),page component,P0 (P0-2) - 3 missing components,KEEP (fix imports),high
+frontend/src/pages/Login.jsx,frontend-pages,ACTIVE,page component,none,KEEP,high
+frontend/src/pages/Dashboard.jsx,frontend-pages,ACTIVE,page component,none,KEEP,high
+frontend/src/pages/AIDashboard.jsx,frontend-pages,ACTIVE,page component,none,KEEP,high
+frontend/src/pages/ExplanationDashboard.jsx,frontend-pages,ACTIVE,page component,none,KEEP,high
+frontend/src/pages/LiveSimulationMap.jsx,frontend-pages,ACTIVE,page component,none,KEEP,high
+frontend/src/pages/SimulationMonitoring.jsx,frontend-pages,ACTIVE,page component,none,KEEP,high
+frontend/src/pages/DatasetManagement.jsx,frontend-pages,ACTIVE,page component,none,KEEP,high
+frontend/src/pages/ProviderManagement.jsx,frontend-pages,ACTIVE,page component,none,KEEP,high
+frontend/src/hooks/useOperationalNetwork.js,frontend-hooks,ACTIVE,data-fetching/route-geometry hook,none,KEEP,high
+frontend/src/hooks/useOperationalRoute.js,frontend-hooks,ACTIVE,data-fetching/route-geometry hook,none,KEEP,high
+frontend/src/hooks/useSeparateRoutes.js,frontend-hooks,ACTIVE,data-fetching/route-geometry hook,none,KEEP,high
+frontend/src/utils/coimbatore.js,frontend-utils,ACTIVE,shared utility module,none,KEEP,high
+frontend/src/utils/operationalRoute.js,frontend-utils,ACTIVE,shared utility module,none,KEEP,high
+frontend/src/utils/requestSemantics.js,frontend-utils,ACTIVE,shared utility module,none,KEEP,high
+frontend/src/utils/routeUtils.js,frontend-utils,ACTIVE,shared utility module,none,KEEP,high
+frontend/src/utils/xaiMap.js,frontend-utils,ACTIVE,shared utility module,none,KEEP,high
+frontend/src/components/AdminLayout.jsx,frontend-components,ACTIVE,authenticated layout shell,none,KEEP,high
+frontend/src/components/ProtectedRoute.jsx,frontend-components,ACTIVE,auth route guard,none,KEEP,high
+frontend/src/components/analytics/KPICards.jsx,frontend-components,ACTIVE,KPI summary cards,none,KEEP,high
+frontend/src/components/analytics/TimeAnalytics.jsx,frontend-components,ACTIVE,time-series analytics chart,none,KEEP,high
+frontend/src/components/dmfe/BatchesPanel.jsx,frontend-components,ACTIVE,batch list panel,none,KEEP,high
+frontend/src/components/dmfe/CandidateBatchCard.jsx,frontend-components,ACTIVE,candidate batch card,none,KEEP,high
+frontend/src/components/dmfe/CompatibilityGauge.jsx,frontend-components,ACTIVE,"compatibility gauge (live copy, see DUPLICATE note)",none,KEEP,high
+frontend/src/components/dmfe/FactorBreakdown.jsx,frontend-components,ACTIVE,factor breakdown display,none,KEEP,high
+frontend/src/components/map/ActiveTripsLayer.jsx,frontend-components,ACTIVE,active trips map layer,none,KEEP,high
+frontend/src/components/map/FleetLayer.jsx,frontend-components,ACTIVE,fleet map layer,none,KEEP,high
+frontend/src/components/map/KpiBar.jsx,frontend-components,ACTIVE,map KPI/search bar,none,KEEP,high
+frontend/src/components/map/LiveMapContainer.jsx,frontend-components,ACTIVE,live map container,none,KEEP,high
+frontend/src/components/map/MapControls.jsx,frontend-components,ACTIVE,map controls,none,KEEP,high
+frontend/src/components/map/MapFilterPanel.jsx,frontend-components,ACTIVE,map filter dropdowns,none,KEEP,high
+frontend/src/components/map/MarkerPopup.jsx,frontend-components,ACTIVE,marker popup,none,KEEP,high
+frontend/src/components/map/RequestMarkers.jsx,frontend-components,ACTIVE,request markers layer,none,KEEP,high
+frontend/src/components/map/TripDetailsPanel.jsx,frontend-components,ACTIVE,trip details panel,none,KEEP,high
+frontend/src/components/map/XAIHighlightLayer.jsx,frontend-components,ACTIVE,XAI highlight overlay,none,KEEP,high
+frontend/src/components/map/markerIcons.js,frontend-components,ACTIVE,memoized marker icon cache,none,KEEP,high
+frontend/src/components/notifications/ActivityTimeline.jsx,frontend-components,ACTIVE,notification activity timeline,none,KEEP,high
+frontend/src/components/playback/SavedSimulationsTable.jsx,frontend-components,ACTIVE,saved simulations table,none,KEEP,high
+frontend/src/components/playback/ScenarioComparison.jsx,frontend-components,ACTIVE,scenario comparison view,none,KEEP,high
+frontend/src/components/ui/PageHeader.jsx,frontend-components,ACTIVE,shared page header,none,KEEP,high
+frontend/src/components/ui/StatusBadge.jsx,frontend-components,ACTIVE,shared status badge,none,KEEP,high
+frontend/src/components/xai/DecisionCard.jsx,frontend-components,ACTIVE,AI Insights decision card,none,KEEP,high
+frontend/src/components/xai/XaiDecisionPanel.jsx,frontend-components,ACTIVE,AI Insights right panel,none,KEEP,high
+frontend/src/components/xai/XaiMapPanel.jsx,frontend-components,ACTIVE,AI Insights center map panel,none,KEEP,high
+frontend/src/components/ui/AnimatedNumber.jsx,frontend-components,CONFIRMED DEAD,"count-up animation, never imported",P2 (P2-5),DELETE CANDIDATE,high
+frontend/src/components/xai/ScoreBreakdown.jsx,frontend-components,CONFIRMED DEAD,"score breakdown, never imported",P2 (P2-5),DELETE CANDIDATE,high
+frontend/src/components/xai/ExplanationFilters.jsx,frontend-components,CONFIRMED DEAD,"explanation filters, never imported",P2 (P2-5),DELETE CANDIDATE,high
+frontend/src/components/xai/CompatibilityGauge.jsx,frontend-components,DUPLICATE,"duplicate of dmfe/CompatibilityGauge.jsx, ships fabricated default props (89.5/92)","P2 (P2-2, P2-5)",DELETE CANDIDATE,high
+frontend/src/components/map/ActivityBar.jsx,frontend-components,DUPLICATE,"superseded by KpiBar.jsx, never imported",P2 (P2-5),DELETE CANDIDATE,high
+frontend/src/components/map/MapFilters.jsx,frontend-components,LEGACY,"superseded by MapFilterPanel.jsx + KpiBar.jsx split, never imported",P2 (P2-5),DELETE CANDIDATE,high
+frontend/src/components/ui/AnimatedBackground.jsx,frontend-components,MISSING (does not exist),imported by App.jsx and referenced in docs/reports/OPERATIONS_MAP_REBUILD_REPORT.md but absent from repository,P0 (P0-1),RESTORE OR REMOVE IMPORT,high
+frontend/src/components/analytics/AnalyticsFilters.jsx,frontend-components,MISSING (does not exist),"imported by AnalyticsDashboard.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/src/components/analytics/AnalyticsCharts.jsx,frontend-components,MISSING (does not exist),"imported by AnalyticsDashboard.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/src/components/analytics/RequestAnalytics.jsx,frontend-components,MISSING (does not exist),"imported by AnalyticsDashboard.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/src/components/analytics/ProviderAnalytics.jsx,frontend-components,MISSING (does not exist),"imported by AnalyticsDashboard.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/src/components/analytics/ReportExport.jsx,frontend-components,MISSING (does not exist),"imported by AnalyticsDashboard.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/src/components/dmfe/DMFEStatisticsBar.jsx,frontend-components,MISSING (does not exist),"imported by DMFEDashboard.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/src/components/dmfe/PendingQueuePanel.jsx,frontend-components,MISSING (does not exist),"imported by DMFEDashboard.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/src/components/dmfe/RejectedRequestsPanel.jsx,frontend-components,MISSING (does not exist),"imported by DMFEDashboard.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/src/components/drivers/DriverStatistics.jsx,frontend-components,MISSING (does not exist),"imported by DriverDashboard.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/src/components/drivers/VehicleStatistics.jsx,frontend-components,MISSING (does not exist),"imported by DriverDashboard.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/src/components/drivers/DriverTable.jsx,frontend-components,MISSING (does not exist),"imported by DriverDashboard.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/src/components/drivers/VehicleTable.jsx,frontend-components,MISSING (does not exist),"imported by DriverDashboard.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/src/components/drivers/AssignmentHistory.jsx,frontend-components,MISSING (does not exist),"imported by DriverDashboard.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/src/components/drivers/VehicleLocationMap.jsx,frontend-components,MISSING (does not exist),"imported by DriverDashboard.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/src/components/config/SimulationSettings.jsx,frontend-components,MISSING (does not exist),"imported by SystemConfiguration.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/src/components/config/ProviderConfiguration.jsx,frontend-components,MISSING (does not exist),"imported by SystemConfiguration.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/src/components/config/VehicleRules.jsx,frontend-components,MISSING (does not exist),"imported by SystemConfiguration.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/src/components/config/AIRules.jsx,frontend-components,MISSING (does not exist),"imported by SystemConfiguration.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/src/components/config/SystemPreferences.jsx,frontend-components,MISSING (does not exist),"imported by SystemConfiguration.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/src/components/config/BackupRestore.jsx,frontend-components,MISSING (does not exist),"imported by SystemConfiguration.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/src/components/config/AuditLog.jsx,frontend-components,MISSING (does not exist),"imported by SystemConfiguration.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/src/components/notifications/NotificationStatistics.jsx,frontend-components,MISSING (does not exist),"imported by NotificationCenter.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/src/components/notifications/NotificationFilters.jsx,frontend-components,MISSING (does not exist),"imported by NotificationCenter.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/src/components/notifications/NotificationCard.jsx,frontend-components,MISSING (does not exist),"imported by NotificationCenter.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/src/components/playback/ScenarioDashboardOverview.jsx,frontend-components,MISSING (does not exist),"imported by ScenarioDashboard.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/src/components/playback/SimulationReplayPlayer.jsx,frontend-components,MISSING (does not exist),"imported by ScenarioDashboard.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/src/components/playback/ScenarioManager.jsx,frontend-components,MISSING (does not exist),"imported by ScenarioDashboard.jsx, does not exist",P0 (P0-2),RESTORE,high
+frontend/package.json,frontend-config,ACTIVE,npm dependencies/scripts (no test script),none,KEEP,high
+README.md,root-docs,ACTIVE,project README,none,KEEP,medium
+PROJECT_WORK_STRUCTURE.md,root-docs,ACTIVE,project work structure doc,none,KEEP,medium
+docs/01_Project_Validation_Report.md,root-docs,ACTIVE,project documentation,none,KEEP,medium
+docs/02_Experimental_Evaluation.md,root-docs,ACTIVE,project documentation,none,KEEP,medium
+docs/03_Research_Contribution.md,root-docs,ACTIVE,project documentation,none,KEEP,medium
+docs/04_IEEE_Paper_Draft.md,root-docs,ACTIVE,project documentation,none,KEEP,medium
+docs/05_Technical_Documentation.md,root-docs,ACTIVE,project documentation,none,KEEP,medium
+docs/06_Presentation_Outline.md,root-docs,ACTIVE,project documentation,none,KEEP,medium
+docs/07_Viva_Preparation.md,root-docs,ACTIVE,project documentation,none,KEEP,medium
+docs/08_Portfolio_Content.md,root-docs,ACTIVE,project documentation,none,KEEP,medium
+docs/09_Final_Assessment.md,root-docs,ACTIVE,project documentation,none,KEEP,medium
+docs/10_Final_Report.md,root-docs,ACTIVE,project documentation,none,KEEP,medium
+docs/11_ADMFE_Experimental_Evaluation.md,root-docs,ACTIVE,project documentation,none,KEEP,medium
+docs/12_Performance_Optimization_Report.md,root-docs,ACTIVE,project documentation,none,KEEP,medium
+docs/13_Final_Freeze_Report.md,root-docs,ACTIVE,project documentation,none,KEEP,medium
+docs/A-DMFE_MANUAL_LIVE_QA_REPORT.md,root-docs,ACTIVE,project documentation,none,KEEP,medium
+docs/FINAL_PROJECT_VERIFICATION_REPORT.md,root-docs,ACTIVE,project documentation,none,KEEP,medium
+docs/METRIC_DEFINITIONS.md,root-docs,ACTIVE,project documentation,none,KEEP,medium
+docs/PROJECT_FILE_CODE_AUDIT.md,root-docs,ACTIVE,project documentation,none,KEEP,medium
+docs/Reproducibility_Guide.md,root-docs,ACTIVE,project documentation,none,KEEP,medium
+docs/STORAGE_OPTIMIZATION_REPORT.md,root-docs,ACTIVE,project documentation,none,KEEP,medium
+docs/reports/BACKEND_WORKING_PERCENTAGE.md,root-docs,ACTIVE,historical audit/fix report,none,KEEP,medium
+docs/reports/E2E_SMOKE_TEST_REPORT.md,root-docs,ACTIVE,historical audit/fix report,none,KEEP,medium
+docs/reports/FINAL_CLEANUP_REPORT.md,root-docs,ACTIVE,historical audit/fix report,none,KEEP,medium
+docs/reports/FINAL_PROJECT_AUDIT.md,root-docs,ACTIVE,historical audit/fix report,none,KEEP,medium
+docs/reports/FRONTEND_INTEGRATION_AUDIT.md,root-docs,ACTIVE,historical audit/fix report,none,KEEP,medium
+docs/reports/LIVE_MAP_ROUTE_XAI_FIX_REPORT.md,root-docs,ACTIVE,historical audit/fix report,none,KEEP,medium
+docs/reports/OPERATIONS_MAP_REBUILD_REPORT.md,root-docs,ACTIVE,historical audit/fix report,none,KEEP,medium
+archive/final_audit/,root-archive,ACTIVE (historical reference),prior AI-generated knowledge packages (Gemini) and dead-code audit snapshot - not re-verified this pass,none,KEEP,low
+paper/,root-research,ACTIVE (binary documents),"IEEE paper drafts (docx/pdf), not text-analyzed this pass",none,KEEP,low

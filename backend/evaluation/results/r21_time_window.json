@@ -1,0 +1,164 @@
+{
+  "experiment": "R2.1 time-window (max delay) sensitivity",
+  "reviewer_mapping": "R2.1",
+  "timestamp": "2026-09-02T11:34:40.087577+00:00",
+  "seed": 2121,
+  "mode": "adaptive",
+  "sweep": [
+    10,
+    15,
+    20,
+    25,
+    30
+  ],
+  "knob": {
+    "config_key": "max_allowed_delay_min",
+    "what_it_controls": "max pairwise request-timestamp difference allowed for a compatible pair (scoring.time_window_score) and the routing delay budget / per-batch delay estimate.",
+    "fake_column_used": false
+  },
+  "all_knob_values_took_effect": true,
+  "points": {
+    "10": {
+      "sweep_value_min": 10,
+      "delay_budget_seen_by_engine_min": 10.0,
+      "knob_took_effect": true,
+      "seed": 2121,
+      "requests": 60,
+      "single_pass": {
+        "processed": 60,
+        "shared_trips": 20,
+        "individual_trips": 16,
+        "assignments_created": 36,
+        "batching_rate_pct": 55.6,
+        "avg_delay_min": 4.63,
+        "avg_utilization_pct": 70.37,
+        "total_distance_km": 406.21,
+        "total_fuel_l": 19.72
+      },
+      "waves": {
+        "waves": 0,
+        "trips_total": 36,
+        "total_distance_km": 406.21,
+        "total_fuel_l": 22.36,
+        "total_co2_kg": 51.44,
+        "requests_completed": 60,
+        "requests_failed": 0,
+        "completion_rate_pct": 100.0
+      }
+    },
+    "15": {
+      "sweep_value_min": 15,
+      "delay_budget_seen_by_engine_min": 15.0,
+      "knob_took_effect": true,
+      "seed": 2121,
+      "requests": 60,
+      "single_pass": {
+        "processed": 60,
+        "shared_trips": 22,
+        "individual_trips": 12,
+        "assignments_created": 34,
+        "batching_rate_pct": 64.7,
+        "avg_delay_min": 5.52,
+        "avg_utilization_pct": 69.24,
+        "total_distance_km": 397.26,
+        "total_fuel_l": 20.33
+      },
+      "waves": {
+        "waves": 0,
+        "trips_total": 34,
+        "total_distance_km": 397.26,
+        "total_fuel_l": 23.93,
+        "total_co2_kg": 55.03,
+        "requests_completed": 60,
+        "requests_failed": 0,
+        "completion_rate_pct": 100.0
+      }
+    },
+    "20": {
+      "sweep_value_min": 20,
+      "delay_budget_seen_by_engine_min": 20.0,
+      "knob_took_effect": true,
+      "seed": 2121,
+      "requests": 60,
+      "single_pass": {
+        "processed": 60,
+        "shared_trips": 23,
+        "individual_trips": 10,
+        "assignments_created": 33,
+        "batching_rate_pct": 69.7,
+        "avg_delay_min": 5.57,
+        "avg_utilization_pct": 69.57,
+        "total_distance_km": 382.79,
+        "total_fuel_l": 20.8
+      },
+      "waves": {
+        "waves": 0,
+        "trips_total": 33,
+        "total_distance_km": 382.79,
+        "total_fuel_l": 23.81,
+        "total_co2_kg": 54.77,
+        "requests_completed": 60,
+        "requests_failed": 0,
+        "completion_rate_pct": 100.0
+      }
+    },
+    "25": {
+      "sweep_value_min": 25,
+      "delay_budget_seen_by_engine_min": 25.0,
+      "knob_took_effect": true,
+      "seed": 2121,
+      "requests": 60,
+      "single_pass": {
+        "processed": 60,
+        "shared_trips": 23,
+        "individual_trips": 10,
+        "assignments_created": 33,
+        "batching_rate_pct": 69.7,
+        "avg_delay_min": 5.55,
+        "avg_utilization_pct": 69.57,
+        "total_distance_km": 380.03,
+        "total_fuel_l": 20.73
+      },
+      "waves": {
+        "waves": 0,
+        "trips_total": 33,
+        "total_distance_km": 380.03,
+        "total_fuel_l": 23.75,
+        "total_co2_kg": 54.62,
+        "requests_completed": 60,
+        "requests_failed": 0,
+        "completion_rate_pct": 100.0
+      }
+    },
+    "30": {
+      "sweep_value_min": 30,
+      "delay_budget_seen_by_engine_min": 30.0,
+      "knob_took_effect": true,
+      "seed": 2121,
+      "requests": 60,
+      "single_pass": {
+        "processed": 60,
+        "shared_trips": 23,
+        "individual_trips": 10,
+        "assignments_created": 33,
+        "batching_rate_pct": 69.7,
+        "avg_delay_min": 5.55,
+        "avg_utilization_pct": 69.57,
+        "total_distance_km": 380.03,
+        "total_fuel_l": 20.73
+      },
+      "waves": {
+        "waves": 0,
+        "trips_total": 33,
+        "total_distance_km": 380.03,
+        "total_fuel_l": 23.75,
+        "total_co2_kg": 54.62,
+        "requests_completed": 60,
+        "requests_failed": 0,
+        "completion_rate_pct": 100.0
+      }
+    }
+  },
+  "method_notes": "Each sweep point reseeds SystemConfig.max_allowed_delay_min in the isolated evaluation DB and calls clear_config_cache() so the new value is actually read.  Requests are regenerated with the same deterministic seed at every sweep point, so only the time-window knob changes between points.  The engine's read-back of the knob is recorded per point.",
+  "limitations": "The current engine has no per-request time-window column; the sweep targets the actual SystemConfig max-allowed-delay gate. Synthetic requests only."
+}

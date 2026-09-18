@@ -27,18 +27,25 @@ Design rules:
 
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
+
 from app.core.json_utils import json_loads
 from app.db.models import SimulationRequest
 from app.dmfe.batch_generator import BatchGenerator, CandidateGroup
 from app.dmfe.compatibility import resolve_mode, _get_threshold
 from app.dmfe.decision_engine import _make_batch_row
-from app.dmfe.driver_selection import complete_stale_trips, dispatch_trip, DriverSelector
+from app.dmfe.driver_selection import (
+    complete_stale_trips,
+    dispatch_trip,
+    DriverPool,
+    DriverSelector,
+)
 from app.dmfe.models import DMFEBatch
 from app.dmfe.optimizer import _cached_vrp_rules
 
@@ -73,6 +80,27 @@ def _high_priority_violation(
     if not any((r.priority or "Medium") == "High" for r in cg.requests):
         return False
     return cg.result.estimated_delay_min > rules.get("max_allowed_delay_min", 20.0)
+
+
+def _update_pool_after_dispatch(
+    pool: "DriverPool", driver_id: int, vehicle_id: int
+) -> None:
+    """
+    Update the driver pool in-place after a successful dispatch.
+
+    Avoids a full 9-query pool rebuild (build_pool) after every dispatch by
+    making only the minimal necessary changes:
+      - Remove the dispatched driver from the available list.
+      - Remove the dispatched vehicle from the available list.
+      - Increment active_counts so the selector's double-booking guard stays
+        accurate for any subsequent selection in the same run.
+
+    The full build_pool is still called once at the start of each run to get
+    an accurate snapshot; this helper keeps it current between dispatches.
+    """
+    pool.drivers = [d for d in pool.drivers if d.id != driver_id]
+    pool.vehicles = [v for v in pool.vehicles if v.id != vehicle_id]
+    pool.active_counts[driver_id] = pool.active_counts.get(driver_id, 0) + 1
 
 
 def _persist_batch(
@@ -175,7 +203,7 @@ class PipelineRunner:
         pending: List[SimulationRequest] = (
             db.query(SimulationRequest)
             .filter(SimulationRequest.status == "Pending")
-            .order_by(SimulationRequest.created_at.asc())
+            .order_by(SimulationRequest.created_at.asc(), SimulationRequest.id.asc())
             .limit(max(1, min(limit, 500)))
             .all()
         )
@@ -223,6 +251,10 @@ class PipelineRunner:
 
         # ── 3. Build global DriverPool once ─────────────────────────────────
         driver_pool = DriverSelector().build_pool(db)
+        logger.info(
+            "Pipeline: driver pool = %d drivers, %d vehicles",
+            len(driver_pool.drivers), len(driver_pool.vehicles),
+        )
 
         # ── 4+5+6. Dispatch shared batches ──────────────────────────────────
         for cg in feasible:
@@ -231,23 +263,29 @@ class PipelineRunner:
                 continue  # rejected by Gate D — handled as individuals
 
             batch_code = f"BATCH-{cg.requests[0].id:04d}-{cg.requests[-1].id:04d}"
+            batch = _persist_batch(
+                db, batch_code,
+                [r.id for r in cg.requests],
+                cg.result.compatibility_score,
+                decision="Compatible", status="Pending",
+                reasons=list(cg.result.reasons),
+                factor_scores=cg.result.factor_scores,
+                delay_min=cg.result.estimated_delay_min,
+                factor_details=cg.result.factor_details,
+            )
+            db.flush()  # ensure batch.id exists before dispatch
             try:
-                batch = _persist_batch(
-                    db, batch_code,
-                    [r.id for r in cg.requests],
-                    cg.result.compatibility_score,
-                    decision="Compatible", status="Pending",
-                    reasons=list(cg.result.reasons),
-                    factor_scores=cg.result.factor_scores,
-                    delay_min=cg.result.estimated_delay_min,
-                    factor_details=cg.result.factor_details,
-                )
                 outcome = dispatch_trip(
                     db, cg.requests, batch=batch,
                     trip_key=batch_code, pool=driver_pool, commit=True
                 )
             except ValueError as exc:
-                db.rollback()
+                batch.status = "Rejected"
+                batch.reason_json = json.dumps([
+                    *json_loads(batch.reason_json, []),
+                    f"✗ Dispatch failed: {exc}",
+                ])
+                db.commit()
                 logger.warning("Shared trip %s not dispatched: %s", batch_code, exc)
                 result.unassigned.append({
                     "batch_code": batch_code,
@@ -257,11 +295,12 @@ class PipelineRunner:
                 })
                 continue
             except Exception as exc:
-                # dispatch_trip only documents ValueError, but anything raised
-                # out of the optimizer (e.g. a bad OR-Tools call) used to abort
-                # the whole run and 500 the request, losing every dispatch that
-                # would have followed. Record it loudly and keep going.
-                db.rollback()
+                batch.status = "Rejected"
+                batch.reason_json = json.dumps([
+                    *json_loads(batch.reason_json, []),
+                    f"✗ Dispatch failed: {type(exc).__name__}: {exc}",
+                ])
+                db.commit()
                 logger.exception("Shared trip %s failed unexpectedly", batch_code)
                 result.unassigned.append({
                     "batch_code": batch_code,
@@ -274,15 +313,13 @@ class PipelineRunner:
             result.shared_trips += 1
             result.assignments_created += 1
             _record_dispatch(batch, outcome)
-            # dispatch_trip() already committed the Trip; commit the dispatch
-            # record with it so a later iteration's db.rollback() cannot
-            # discard it.  Without this the "✓ Dispatched" line and the
-            # details["predicted"] snapshot are lost for every earlier batch
-            # as soon as any subsequent batch fails — and that snapshot is
-            # what keeps the prediction recoverable for the learning engine.
             db.commit()
-            driver_pool.drivers = [d for d in driver_pool.drivers if d.id != outcome["driver"].id]
-            driver_pool.vehicles = [v for v in driver_pool.vehicles if v.id != outcome["vehicle"].id]
+            # Fix 3: targeted in-memory update instead of a full 9-query pool rebuild.
+            _update_pool_after_dispatch(
+                driver_pool,
+                outcome["driver"].id,
+                outcome["vehicle"].id,
+            )
             result.dispatches.append(self._outcome_to_dict(outcome, batch_code))
 
         # ── 4+5+6. Dispatch individual trips ────────────────────────────────
@@ -295,18 +332,24 @@ class PipelineRunner:
         for req in pending:
             if covered_ids.get(req.id) == "shared":
                 continue
+            batch = _persist_batch(
+                db, f"TRIP-{req.id:04d}", [req.id],
+                0.0, decision="Individual", status="Individual",
+                reasons=["Solo trip — no compatible batch found"],
+            )
+            db.flush()
             try:
-                batch = _persist_batch(
-                    db, f"TRIP-{req.id:04d}", [req.id],
-                    0.0, decision="Individual", status="Individual",
-                    reasons=["Solo trip — no compatible batch found"],
-                )
                 outcome = dispatch_trip(
                     db, [req], batch=batch, trip_key=f"TRIP-{req.id:04d}",
                     pool=driver_pool, commit=True
                 )
             except ValueError as exc:
-                db.rollback()
+                batch.status = "Rejected"
+                batch.reason_json = json.dumps([
+                    *json_loads(batch.reason_json, []),
+                    f"✗ Dispatch failed: {exc}",
+                ])
+                db.commit()
                 logger.warning("Individual trip %s not dispatched: %s",
                                req.id, exc)
                 result.unassigned.append({
@@ -316,8 +359,12 @@ class PipelineRunner:
                 })
                 continue
             except Exception as exc:
-                # See the shared-trip loop above.
-                db.rollback()
+                batch.status = "Rejected"
+                batch.reason_json = json.dumps([
+                    *json_loads(batch.reason_json, []),
+                    f"✗ Dispatch failed: {type(exc).__name__}: {exc}",
+                ])
+                db.commit()
                 logger.exception("Individual trip %s failed unexpectedly", req.id)
                 result.unassigned.append({
                     "request_ids": [req.id],
@@ -329,11 +376,13 @@ class PipelineRunner:
             result.individual_trips += 1
             result.assignments_created += 1
             _record_dispatch(batch, outcome)
-            # See the shared-trip loop above: commit the dispatch record with
-            # the already-committed Trip so a later rollback cannot drop it.
             db.commit()
-            driver_pool.drivers = [d for d in driver_pool.drivers if d.id != outcome["driver"].id]
-            driver_pool.vehicles = [v for v in driver_pool.vehicles if v.id != outcome["vehicle"].id]
+            # Fix 3: targeted in-memory update instead of a full 9-query pool rebuild.
+            _update_pool_after_dispatch(
+                driver_pool,
+                outcome["driver"].id,
+                outcome["vehicle"].id,
+            )
             result.dispatches.append(
                 self._outcome_to_dict(outcome, f"TRIP-{req.id:04d}")
             )

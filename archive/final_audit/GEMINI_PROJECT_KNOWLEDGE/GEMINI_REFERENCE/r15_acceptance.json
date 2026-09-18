@@ -1,0 +1,212 @@
+{
+  "experiment": "R1.5 acceptance simulation",
+  "reviewer_mapping": "R1.5",
+  "timestamp": "2026-09-02T11:34:32.754434+00:00",
+  "seed_base": 1515,
+  "repeats": 5,
+  "workload": 60,
+  "mode": "adaptive",
+  "assumptions": {
+    "human_study": false,
+    "priority_weights": {
+      "Low": 0.2,
+      "Medium": 0.6,
+      "High": 1.0
+    },
+    "accepted_means_dispatched": "A request is counted accepted when the pipeline dispatches it into a shared or individual trip (assignment is the acceptance decision).",
+    "fulfilled_means_completed": "An accepted request is counted fulfilled when its trip completes through the real trip lifecycle under the deterministic execution model.",
+    "model": "Higher-priority requests carry higher scoring weight in DMFE (0.2/0.6/1.0), so they are more likely to be paired and dispatched.  All numbers below are SIMULATED outcomes of this model, not measured human acceptance."
+  },
+  "runs": {
+    "1515": {
+      "seed": 1515,
+      "requests": 60,
+      "per_priority": {
+        "Low": {
+          "total": 13,
+          "accepted": 13,
+          "fulfilled": 13,
+          "simulated_acceptance_rate_pct": 100.0
+        },
+        "Medium": {
+          "total": 38,
+          "accepted": 38,
+          "fulfilled": 38,
+          "simulated_acceptance_rate_pct": 100.0
+        },
+        "High": {
+          "total": 9,
+          "accepted": 9,
+          "fulfilled": 9,
+          "simulated_acceptance_rate_pct": 100.0
+        }
+      },
+      "accepted_total": 60,
+      "completed_total": 60,
+      "simulated_acceptance_rate_pct": 100.0,
+      "simulated_fulfillment_rate_pct": 100.0,
+      "priority_weighted_acceptance_pct": 100.0,
+      "single_pass": {
+        "batching_rate_pct": 81.2,
+        "shared_trips": 26,
+        "individual_trips": 6
+      }
+    },
+    "1516": {
+      "seed": 1516,
+      "requests": 60,
+      "per_priority": {
+        "Low": {
+          "total": 21,
+          "accepted": 21,
+          "fulfilled": 21,
+          "simulated_acceptance_rate_pct": 100.0
+        },
+        "Medium": {
+          "total": 29,
+          "accepted": 29,
+          "fulfilled": 29,
+          "simulated_acceptance_rate_pct": 100.0
+        },
+        "High": {
+          "total": 10,
+          "accepted": 10,
+          "fulfilled": 10,
+          "simulated_acceptance_rate_pct": 100.0
+        }
+      },
+      "accepted_total": 60,
+      "completed_total": 60,
+      "simulated_acceptance_rate_pct": 100.0,
+      "simulated_fulfillment_rate_pct": 100.0,
+      "priority_weighted_acceptance_pct": 100.0,
+      "single_pass": {
+        "batching_rate_pct": 48.6,
+        "shared_trips": 18,
+        "individual_trips": 19
+      }
+    },
+    "1517": {
+      "seed": 1517,
+      "requests": 60,
+      "per_priority": {
+        "Low": {
+          "total": 12,
+          "accepted": 12,
+          "fulfilled": 12,
+          "simulated_acceptance_rate_pct": 100.0
+        },
+        "Medium": {
+          "total": 39,
+          "accepted": 39,
+          "fulfilled": 39,
+          "simulated_acceptance_rate_pct": 100.0
+        },
+        "High": {
+          "total": 9,
+          "accepted": 9,
+          "fulfilled": 9,
+          "simulated_acceptance_rate_pct": 100.0
+        }
+      },
+      "accepted_total": 60,
+      "completed_total": 60,
+      "simulated_acceptance_rate_pct": 100.0,
+      "simulated_fulfillment_rate_pct": 100.0,
+      "priority_weighted_acceptance_pct": 100.0,
+      "single_pass": {
+        "batching_rate_pct": 70.6,
+        "shared_trips": 24,
+        "individual_trips": 10
+      }
+    },
+    "1518": {
+      "seed": 1518,
+      "requests": 60,
+      "per_priority": {
+        "Low": {
+          "total": 17,
+          "accepted": 17,
+          "fulfilled": 17,
+          "simulated_acceptance_rate_pct": 100.0
+        },
+        "Medium": {
+          "total": 38,
+          "accepted": 38,
+          "fulfilled": 38,
+          "simulated_acceptance_rate_pct": 100.0
+        },
+        "High": {
+          "total": 5,
+          "accepted": 5,
+          "fulfilled": 5,
+          "simulated_acceptance_rate_pct": 100.0
+        }
+      },
+      "accepted_total": 60,
+      "completed_total": 60,
+      "simulated_acceptance_rate_pct": 100.0,
+      "simulated_fulfillment_rate_pct": 100.0,
+      "priority_weighted_acceptance_pct": 100.0,
+      "single_pass": {
+        "batching_rate_pct": 65.7,
+        "shared_trips": 23,
+        "individual_trips": 12
+      }
+    },
+    "1519": {
+      "seed": 1519,
+      "requests": 60,
+      "per_priority": {
+        "Low": {
+          "total": 19,
+          "accepted": 19,
+          "fulfilled": 19,
+          "simulated_acceptance_rate_pct": 100.0
+        },
+        "Medium": {
+          "total": 27,
+          "accepted": 27,
+          "fulfilled": 27,
+          "simulated_acceptance_rate_pct": 100.0
+        },
+        "High": {
+          "total": 14,
+          "accepted": 14,
+          "fulfilled": 14,
+          "simulated_acceptance_rate_pct": 100.0
+        }
+      },
+      "accepted_total": 60,
+      "completed_total": 60,
+      "simulated_acceptance_rate_pct": 100.0,
+      "simulated_fulfillment_rate_pct": 100.0,
+      "priority_weighted_acceptance_pct": 100.0,
+      "single_pass": {
+        "batching_rate_pct": 67.6,
+        "shared_trips": 23,
+        "individual_trips": 11
+      }
+    }
+  },
+  "aggregate": {
+    "simulated_acceptance_rate_pct": {
+      "mean": 100.0,
+      "min": 100.0,
+      "max": 100.0
+    },
+    "simulated_fulfillment_rate_pct": {
+      "mean": 100.0,
+      "min": 100.0,
+      "max": 100.0
+    },
+    "priority_weighted_acceptance_pct": {
+      "mean": 100.0,
+      "min": 100.0,
+      "max": 100.0
+    },
+    "repeats": 5
+  },
+  "interpretation": "Under the assumed acceptance model (priority-weighted dispatch and completion through the trip lifecycle), simulated acceptance was 100.0% mean across 5 repeats.",
+  "limitations": "Simulation only.  Not a human study; no user preference claims are made.  Acceptance probabilities are the model's assumptions, not measured behavior."
+}

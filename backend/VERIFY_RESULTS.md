@@ -1,12 +1,12 @@
 # DMFE verification run
 
-Generated 2026-08-17 14:58:55 by `scripts/verify_all.py`
+Generated 2026-09-13 14:36:34 by `scripts/verify_all.py`
 
 ```
-DMFE verification suite — 2026-08-17 14:58:55
+DMFE verification suite — 2026-09-13 14:36:34
 python      : 3.14.5  (D:\rapidoproject\backend\.venv\Scripts\python.exe)
 backend     : D:\rapidoproject\backend
-scratch db  : sqlite:///C:/Users/SIVASU~1/AppData/Local/Temp/dmfe_verify_lq5oxyzn/verify.db
+scratch db  : sqlite:///C:/Users/SIVASU~1/AppData/Local/Temp/dmfe_verify_rt0au1ds/verify.db
 ortools     : 9.15.6755
 
 ==============================================================================
@@ -20,8 +20,17 @@ $ D:\rapidoproject\backend\.venv\Scripts\python.exe -c import app.main; print('i
 $ ruff check --select F,E9,B .
   [SKIP] ruff F,E9,B  — ruff not installed
 $ D:\rapidoproject\backend\.venv\Scripts\python.exe -m pytest tests/ -q
-    ....................................................................     [100%]
-    ============================== warnings summary ===============================
+      D:\rapidoproject\backend\app\schemas\config.py:28: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+        class AuditLogItem(BaseModel):
+    
+    app\schemas\playback.py:14
+      D:\rapidoproject\backend\app\schemas\playback.py:14: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+        class ScenarioResponse(BaseModel):
+    
+    app\schemas\playback.py:32
+      D:\rapidoproject\backend\app\schemas\playback.py:32: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+        class SavedSimulationResponse(BaseModel):
+    
     <frozen importlib._bootstrap>:491
       <frozen importlib._bootstrap>:491: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
     
@@ -30,6 +39,10 @@ $ D:\rapidoproject\backend\.venv\Scripts\python.exe -m pytest tests/ -q
     
     <frozen importlib._bootstrap>:491
       <frozen importlib._bootstrap>:491: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+    
+    tests/test_datasets_upload.py::test_dataset_upload_imports_vehicles
+      D:\rapidoproject\backend\app\db\database.py:68: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "drivers, vehicles", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+        for table in AppBase.metadata.sorted_tables:
     
     -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
   [PASS] pytest tests/  — exit=0

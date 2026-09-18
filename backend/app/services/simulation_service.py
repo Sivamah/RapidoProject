@@ -137,38 +137,51 @@ class QueueManager:
         return metrics
 
     def get_analytics(self, db: Session) -> Dict[str, Any]:
-        """Gather analytical series for Recharts dashboard visualizations."""
-        requests = db.query(SimulationRequest).order_by(SimulationRequest.created_at.asc()).all()
+        """Gather analytical series for Recharts dashboard visualizations.
 
-        # Provider map
-        provider_ids = {r.provider_id for r in requests if r.provider_id}
-        providers = {p.id: p.name for p in db.query(Provider).filter(Provider.id.in_(provider_ids)).all()} if provider_ids else {}
+        Uses SQL GROUP BY for count aggregations — previously loaded the entire
+        simulation_requests table into Python memory (unbounded).
+        """
+        # 1. Type distribution — single aggregation query
+        type_rows = (
+            db.query(SimulationRequest.request_type, func.count(SimulationRequest.id))
+            .group_by(SimulationRequest.request_type)
+            .all()
+        )
+        type_counts = {(rt or "Other").capitalize(): cnt for rt, cnt in type_rows}
 
-        # 1. Type distribution
-        type_counts: Dict[str, int] = {}
-        # 2. Provider distribution
-        provider_counts: Dict[str, int] = {}
-        # 3. Requests over time (grouped by minute)
+        # 2. Provider distribution — single aggregation query
+        provider_id_rows = (
+            db.query(SimulationRequest.provider_id, func.count(SimulationRequest.id))
+            .filter(SimulationRequest.provider_id.isnot(None))
+            .group_by(SimulationRequest.provider_id)
+            .all()
+        )
+        if provider_id_rows:
+            pid_set = {pid for pid, _ in provider_id_rows}
+            pname_map = {p.id: p.name for p in db.query(Provider).filter(Provider.id.in_(pid_set)).all()}
+            provider_counts = {pname_map.get(pid, "Unknown"): cnt for pid, cnt in provider_id_rows}
+        else:
+            provider_counts = {}
+
+        # 3. Time series + queue trend — bounded to most-recent 500 rows
+        # (frontend charts display at most 20–30 points, so fetching all rows
+        # is wasteful; 500 gives plenty of resolution).
+        recent = (
+            db.query(SimulationRequest)
+            .order_by(SimulationRequest.created_at.desc())
+            .limit(500)
+            .all()
+        )
+        recent_asc = list(reversed(recent))
+
         time_series: Dict[str, int] = {}
-        # 4. Queue size trend
         queue_trend: List[Dict[str, Any]] = []
-
         curr_queue = 0
-        for r in requests:
-            # Type count
-            t_name = r.request_type.capitalize() if r.request_type else "Other"
-            type_counts[t_name] = type_counts.get(t_name, 0) + 1
-
-            # Provider count
-            p_name = providers.get(r.provider_id, "Unassigned") if r.provider_id else "Unassigned"
-            provider_counts[p_name] = provider_counts.get(p_name, 0) + 1
-
-            # Time series
+        for r in recent_asc:
             if r.created_at:
                 t_str = r.created_at.strftime("%H:%M")
                 time_series[t_str] = time_series.get(t_str, 0) + 1
-            
-            # Queue trend
             if r.status == "Pending":
                 curr_queue += 1
             elif curr_queue > 0:
@@ -176,7 +189,7 @@ class QueueManager:
             if r.created_at:
                 queue_trend.append({
                     "time": r.created_at.strftime("%H:%M:%S"),
-                    "count": curr_queue
+                    "count": curr_queue,
                 })
 
         return {

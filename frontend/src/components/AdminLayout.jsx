@@ -88,9 +88,11 @@ export default function AdminLayout() {
       } catch { /* silent */ }
     };
     fetchUnread();
+    // 30 s is sufficient for a badge count; the full NotificationCenter page
+    // already fetches live data when open, preventing redundant duplication.
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') fetchUnread();
-    }, 15000);
+    }, 30000);
     return () => {
       cancelled = true;
       clearInterval(interval);

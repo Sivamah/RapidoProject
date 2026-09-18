@@ -152,40 +152,81 @@ class DriverService:
 
         drivers = query.order_by(Driver.created_at.desc()).limit(limit).all()
 
-        # Build output objects with provider & vehicle names
-        providers = {p.id: p.name for p in db.query(Provider).all()}
-        vehicles = {v.id: v.name for v in db.query(Vehicle).all()}
+        # Targeted lookups — only fetch providers/vehicles referenced by the
+        # returned driver rows, not the entire table (previously O(all rows)).
+        provider_ids = {d.provider_id for d in drivers if d.provider_id}
+        vehicle_ids  = {d.assigned_vehicle_id for d in drivers if d.assigned_vehicle_id}
 
-        result = []
-        for d in drivers:
-            result.append({
-                "id": d.id,
-                "name": d.name,
-                "phone": d.phone or "",
-                "email": d.email or "",
-                "provider_id": d.provider_id,
-                "provider_name": providers.get(d.provider_id, "Unassigned"),
-                "status": d.status or "Available",
-                "license_number": d.license_number or "",
-                "current_lat": d.current_lat or 11.0168,
-                "current_lng": d.current_lng or 76.9558,
-                "assigned_vehicle_id": d.assigned_vehicle_id,
-                "assigned_vehicle_name": vehicles.get(d.assigned_vehicle_id, "None"),
-                "created_at": d.created_at,
-            })
-        return result
+        providers = (
+            {p.id: p.name for p in db.query(Provider.id, Provider.name)
+             .filter(Provider.id.in_(provider_ids)).all()}
+            if provider_ids else {}
+        )
+        vehicles = (
+            {v.id: v.name for v in db.query(Vehicle.id, Vehicle.name)
+             .filter(Vehicle.id.in_(vehicle_ids)).all()}
+            if vehicle_ids else {}
+        )
+
+        return [
+            self._driver_dict(d, providers.get(d.provider_id, "Unassigned"), vehicles.get(d.assigned_vehicle_id, "None"))
+            for d in drivers
+        ]
+
+    @staticmethod
+    def _driver_dict(d: Driver, provider_name: str, vehicle_name: str) -> Dict[str, Any]:
+        """Single source of truth for the Driver response shape — shared by
+        `get_drivers` (bulk, pre-fetched name maps) and `serialize_driver`
+        (single already-loaded row, e.g. right after a create/update)."""
+        return {
+            "id": d.id,
+            "name": d.name,
+            "phone": d.phone or "",
+            "email": d.email or "",
+            "provider_id": d.provider_id,
+            "provider_name": provider_name,
+            "status": d.status or "Available",
+            "license_number": d.license_number or "",
+            "current_lat": d.current_lat or 11.0168,
+            "current_lng": d.current_lng or 76.9558,
+            "assigned_vehicle_id": d.assigned_vehicle_id,
+            "assigned_vehicle_name": vehicle_name,
+            "created_at": d.created_at,
+        }
+
+    def serialize_driver(self, db: Session, driver: Driver) -> Dict[str, Any]:
+        """Serialize ONE already-loaded Driver row (e.g. just created/updated
+        and `db.refresh()`-ed) without re-running the filtered, ordered,
+        limited `get_drivers` list query — and without that method's own
+        full Provider/Vehicle IN-lookup, which is unnecessary here since at
+        most one provider name and one vehicle name are ever needed.
+        """
+        provider_name = "Unassigned"
+        if driver.provider_id:
+            row = db.query(Provider.name).filter(Provider.id == driver.provider_id).first()
+            if row:
+                provider_name = row[0]
+        vehicle_name = "None"
+        if driver.assigned_vehicle_id:
+            row = db.query(Vehicle.name).filter(Vehicle.id == driver.assigned_vehicle_id).first()
+            if row:
+                vehicle_name = row[0]
+        return self._driver_dict(driver, provider_name, vehicle_name)
 
     def get_driver_stats(self, db: Session) -> Dict[str, int]:
-        total = db.query(Driver).count()
-        available = db.query(Driver).filter(func.lower(Driver.status) == "available").count()
-        busy = db.query(Driver).filter(func.lower(Driver.status) == "busy").count()
-        offline = db.query(Driver).filter(func.lower(Driver.status) == "offline").count()
-
+        # Single GROUP BY query instead of 4 separate COUNT round-trips.
+        rows = (
+            db.query(func.lower(Driver.status), func.count(Driver.id))
+            .group_by(func.lower(Driver.status))
+            .all()
+        )
+        counts = {status: cnt for status, cnt in rows}
+        total = sum(counts.values())
         return {
             "total_drivers": total,
-            "available_drivers": available,
-            "busy_drivers": busy,
-            "offline_drivers": offline,
+            "available_drivers": counts.get("available", 0),
+            "busy_drivers": counts.get("busy", 0),
+            "offline_drivers": counts.get("offline", 0),
         }
 
     def get_vehicles(
@@ -217,65 +258,131 @@ class DriverService:
 
         vehicles = query.order_by(Vehicle.created_at.desc()).limit(limit).all()
 
-        providers = {p.id: p.name for p in db.query(Provider).all()}
-        drivers = {d.id: d.name for d in db.query(Driver).all()}
+        # Targeted lookups — only fetch providers/drivers referenced by the
+        # returned vehicle rows, not the full tables.
+        provider_ids = {v.provider_id for v in vehicles if v.provider_id}
+        driver_ids   = {v.current_driver_id for v in vehicles if v.current_driver_id}
 
-        result = []
-        for v in vehicles:
-            result.append({
-                "id": v.id,
-                "name": v.name,
-                "vehicle_type": v.vehicle_type,
-                "registration_number": v.registration_number or f"TN-37-AB-{v.id + 1000}",
-                "capacity": v.capacity or 1,
-                "fuel_type": v.fuel_type or "Petrol",
-                "provider_id": v.provider_id,
-                "provider_name": providers.get(v.provider_id, "Unassigned"),
-                "status": v.status or "Available",
-                "cost_per_km": v.cost_per_km or 10.0,
-                "mileage_kmpl": v.mileage_kmpl or 15.0,
-                "current_lat": v.current_lat or 11.0168,
-                "current_lng": v.current_lng or 76.9558,
-                "current_driver_id": v.current_driver_id,
-                "current_driver_name": drivers.get(v.current_driver_id, "Unassigned"),
-                "is_active": bool(v.is_active),
-            })
-        return result
+        providers = (
+            {p.id: p.name for p in db.query(Provider.id, Provider.name)
+             .filter(Provider.id.in_(provider_ids)).all()}
+            if provider_ids else {}
+        )
+        drivers = (
+            {d.id: d.name for d in db.query(Driver.id, Driver.name)
+             .filter(Driver.id.in_(driver_ids)).all()}
+            if driver_ids else {}
+        )
+
+        return [
+            self._vehicle_dict(v, providers.get(v.provider_id, "Unassigned"), drivers.get(v.current_driver_id, "Unassigned"))
+            for v in vehicles
+        ]
+
+    @staticmethod
+    def _vehicle_dict(v: Vehicle, provider_name: str, driver_name: str) -> Dict[str, Any]:
+        """Single source of truth for the Vehicle response shape — shared by
+        `get_vehicles` (bulk, pre-fetched name maps) and `serialize_vehicle`
+        (single already-loaded row, e.g. right after a create/update)."""
+        return {
+            "id": v.id,
+            "name": v.name,
+            "vehicle_type": v.vehicle_type,
+            "registration_number": v.registration_number or f"TN-37-AB-{v.id + 1000}",
+            "capacity": v.capacity or 1,
+            "fuel_type": v.fuel_type or "Petrol",
+            "provider_id": v.provider_id,
+            "provider_name": provider_name,
+            "status": v.status or "Available",
+            "cost_per_km": v.cost_per_km or 10.0,
+            "mileage_kmpl": v.mileage_kmpl or 15.0,
+            "current_lat": v.current_lat or 11.0168,
+            "current_lng": v.current_lng or 76.9558,
+            "current_driver_id": v.current_driver_id,
+            "current_driver_name": driver_name,
+            "is_active": bool(v.is_active),
+        }
+
+    def serialize_vehicle(self, db: Session, vehicle: Vehicle) -> Dict[str, Any]:
+        """Serialize ONE already-loaded Vehicle row without re-running the
+        filtered `get_vehicles` list query (and its own Provider/Driver
+        IN-lookup) just to re-fetch the row the caller already has."""
+        provider_name = "Unassigned"
+        if vehicle.provider_id:
+            row = db.query(Provider.name).filter(Provider.id == vehicle.provider_id).first()
+            if row:
+                provider_name = row[0]
+        driver_name = "Unassigned"
+        if vehicle.current_driver_id:
+            row = db.query(Driver.name).filter(Driver.id == vehicle.current_driver_id).first()
+            if row:
+                driver_name = row[0]
+        return self._vehicle_dict(vehicle, provider_name, driver_name)
 
     def get_vehicle_stats(self, db: Session) -> Dict[str, int]:
-        total = db.query(Vehicle).count()
-        available = db.query(Vehicle).filter(func.lower(Vehicle.status) == "available").count()
-        busy = db.query(Vehicle).filter(func.lower(Vehicle.status) == "busy").count()
-        maint = db.query(Vehicle).filter(func.lower(Vehicle.status) == "maintenance").count()
-
+        # Single GROUP BY query instead of 4 separate COUNT round-trips.
+        rows = (
+            db.query(func.lower(Vehicle.status), func.count(Vehicle.id))
+            .group_by(func.lower(Vehicle.status))
+            .all()
+        )
+        counts = {status: cnt for status, cnt in rows}
+        total = sum(counts.values())
         return {
             "total_vehicles": total,
-            "available_vehicles": available,
-            "vehicles_in_service": busy,
-            "maintenance_vehicles": maint,
+            "available_vehicles": counts.get("available", 0),
+            "vehicles_in_service": counts.get("busy", 0),
+            "maintenance_vehicles": counts.get("maintenance", 0),
         }
 
     def get_vehicle_locations(self, db: Session) -> List[Dict[str, Any]]:
         vehicles = db.query(Vehicle).all()
-        providers = {p.id: p.name for p in db.query(Provider).all()}
-        drivers = {d.id: d.name for d in db.query(Driver).all()}
 
-        coords = SAMPLE_COORDINATES
+        # Targeted lookups for the referenced IDs only.
+        provider_ids = {v.provider_id for v in vehicles if v.provider_id}
+        driver_ids   = {v.current_driver_id for v in vehicles if v.current_driver_id}
+        providers = (
+            {p.id: p.name for p in db.query(Provider.id, Provider.name)
+             .filter(Provider.id.in_(provider_ids)).all()}
+            if provider_ids else {}
+        )
+        drivers = (
+            {d.id: d.name for d in db.query(Driver.id, Driver.name)
+             .filter(Driver.id.in_(driver_ids)).all()}
+            if driver_ids else {}
+        )
+
+        # Positions are reported, never invented.  This used to fall back to
+        # `SAMPLE_COORDINATES[i % 6]`, which placed any vehicle with no recorded
+        # position on a canned Coimbatore landmark — a fabricated vehicle on the
+        # live operations map, indistinguishable from a real one.  A vehicle
+        # without a usable coordinate is now omitted from the location feed;
+        # fleet composition still comes from /api/vehicles.  The registration
+        # number is likewise reported as-is (empty when unknown) rather than
+        # synthesised into a plausible-looking plate.
         result = []
-        for i, v in enumerate(vehicles):
-            lat = v.current_lat or coords[i % len(coords)][0]
-            lng = v.current_lng or coords[i % len(coords)][1]
+        skipped = 0
+        for v in vehicles:
+            lat, lng = v.current_lat, v.current_lng
+            if lat is None or lng is None or (lat == 0 and lng == 0):
+                skipped += 1
+                continue
             result.append({
                 "vehicle_id": v.id,
                 "vehicle_name": v.name,
                 "vehicle_type": v.vehicle_type,
-                "registration_number": v.registration_number or f"TN-37-{v.id}",
+                "registration_number": v.registration_number or "",
                 "provider_name": providers.get(v.provider_id, "Unassigned"),
                 "driver_name": drivers.get(v.current_driver_id, "Unassigned"),
                 "status": v.status or "Available",
-                "lat": lat,
-                "lng": lng,
+                "lat": float(lat),
+                "lng": float(lng),
             })
+        if skipped:
+            logger.info(
+                "vehicle locations: omitted %d vehicle(s) without a recorded position",
+                skipped,
+            )
         return result
 
     def get_assignment_history(self, db: Session, limit: int = 100) -> List[Dict[str, Any]]:

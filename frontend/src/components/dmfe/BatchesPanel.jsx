@@ -2,7 +2,7 @@ import React from 'react';
 import { Layers, AlertCircle } from 'lucide-react';
 import CandidateBatchCard from './CandidateBatchCard';
 
-export default function BatchesPanel({ batches = [], loading = false }) {
+export default function BatchesPanel({ batches = [], loading = false, onAssigned }) {
   // The list holds every batch row the run created — shared batches AND the
   // solo ("Individual") trips for requests that found no partner. Show the
   // split so a screen full of solo trips is not read as "100 compatible".
@@ -41,7 +41,7 @@ export default function BatchesPanel({ batches = [], loading = false }) {
           </div>
         ) : (
           batches.map((batch) => (
-            <CandidateBatchCard key={batch.id || batch.batch_code} batch={batch} />
+            <CandidateBatchCard key={batch.id || batch.batch_code} batch={batch} onAssigned={onAssigned} />
           ))
         )}
       </div>

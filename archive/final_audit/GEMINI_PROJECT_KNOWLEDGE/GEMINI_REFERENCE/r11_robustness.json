@@ -1,0 +1,256 @@
+{
+  "experiment": "R1.1 robustness sweep (8 demand x temporal profiles)",
+  "reviewer_mapping": "R1.1",
+  "timestamp": "2026-09-02T11:34:21.179102+00:00",
+  "seeds": {
+    "LOW:morning_peak": 1111,
+    "LOW:midday_flat": 1112,
+    "LOW:evening_peak": 1113,
+    "LOW:night_sparse": 1114,
+    "HIGH:morning_peak": 1211,
+    "HIGH:midday_flat": 1212,
+    "HIGH:evening_peak": 1213,
+    "HIGH:night_sparse": 1214
+  },
+  "summary": {
+    "demand_levels": [
+      "LOW",
+      "HIGH"
+    ],
+    "temporal_profiles": [
+      "morning_peak",
+      "midday_flat",
+      "evening_peak",
+      "night_sparse"
+    ],
+    "profile_count": 8
+  },
+  "profiles": {
+    "LOW:morning_peak": {
+      "demand_level": "LOW",
+      "temporal_profile": "morning_peak",
+      "seed": 1111,
+      "requests": 30,
+      "single_pass": {
+        "processed": 30,
+        "shared_trips": 10,
+        "individual_trips": 10,
+        "assignments_created": 20,
+        "batching_rate_pct": 50.0,
+        "avg_delay_min": 4.28,
+        "avg_utilization_pct": 83.34,
+        "total_distance_km": 247.97,
+        "total_fuel_l": 8.46,
+        "co2_emitted_kg": 19.46
+      },
+      "waves": {
+        "waves": 0,
+        "trips_total": 20,
+        "total_distance_km": 247.97,
+        "total_fuel_l": 9.26,
+        "total_co2_kg": 21.3,
+        "requests_completed": 30,
+        "requests_failed": 0,
+        "completion_rate_pct": 100.0
+      }
+    },
+    "LOW:midday_flat": {
+      "demand_level": "LOW",
+      "temporal_profile": "midday_flat",
+      "seed": 1112,
+      "requests": 30,
+      "single_pass": {
+        "processed": 30,
+        "shared_trips": 2,
+        "individual_trips": 26,
+        "assignments_created": 28,
+        "batching_rate_pct": 7.1,
+        "avg_delay_min": 2.44,
+        "avg_utilization_pct": 58.93,
+        "total_distance_km": 265.78,
+        "total_fuel_l": 11.61,
+        "co2_emitted_kg": 26.7
+      },
+      "waves": {
+        "waves": 0,
+        "trips_total": 28,
+        "total_distance_km": 265.78,
+        "total_fuel_l": 12.38,
+        "total_co2_kg": 28.48,
+        "requests_completed": 30,
+        "requests_failed": 0,
+        "completion_rate_pct": 100.0
+      }
+    },
+    "LOW:evening_peak": {
+      "demand_level": "LOW",
+      "temporal_profile": "evening_peak",
+      "seed": 1113,
+      "requests": 30,
+      "single_pass": {
+        "processed": 30,
+        "shared_trips": 9,
+        "individual_trips": 10,
+        "assignments_created": 19,
+        "batching_rate_pct": 47.4,
+        "avg_delay_min": 4.57,
+        "avg_utilization_pct": 72.37,
+        "total_distance_km": 230.34,
+        "total_fuel_l": 9.78,
+        "co2_emitted_kg": 22.49
+      },
+      "waves": {
+        "waves": 0,
+        "trips_total": 19,
+        "total_distance_km": 230.34,
+        "total_fuel_l": 11.38,
+        "total_co2_kg": 26.17,
+        "requests_completed": 30,
+        "requests_failed": 0,
+        "completion_rate_pct": 100.0
+      }
+    },
+    "LOW:night_sparse": {
+      "demand_level": "LOW",
+      "temporal_profile": "night_sparse",
+      "seed": 1114,
+      "requests": 30,
+      "single_pass": {
+        "processed": 30,
+        "shared_trips": 3,
+        "individual_trips": 24,
+        "assignments_created": 27,
+        "batching_rate_pct": 11.1,
+        "avg_delay_min": 2.75,
+        "avg_utilization_pct": 63.27,
+        "total_distance_km": 250.56,
+        "total_fuel_l": 8.98,
+        "co2_emitted_kg": 20.65
+      },
+      "waves": {
+        "waves": 0,
+        "trips_total": 27,
+        "total_distance_km": 250.56,
+        "total_fuel_l": 10.18,
+        "total_co2_kg": 23.41,
+        "requests_completed": 30,
+        "requests_failed": 0,
+        "completion_rate_pct": 100.0
+      }
+    },
+    "HIGH:morning_peak": {
+      "demand_level": "HIGH",
+      "temporal_profile": "morning_peak",
+      "seed": 1211,
+      "requests": 120,
+      "single_pass": {
+        "processed": 120,
+        "shared_trips": 50,
+        "individual_trips": 10,
+        "assignments_created": 60,
+        "batching_rate_pct": 83.3,
+        "avg_delay_min": 5.22,
+        "avg_utilization_pct": 75.14,
+        "total_distance_km": 798.56,
+        "total_fuel_l": 40.13,
+        "co2_emitted_kg": 92.3
+      },
+      "waves": {
+        "waves": 1,
+        "trips_total": 69,
+        "total_distance_km": 871.13,
+        "total_fuel_l": 48.47,
+        "total_co2_kg": 111.48,
+        "requests_completed": 120,
+        "requests_failed": 0,
+        "completion_rate_pct": 100.0
+      }
+    },
+    "HIGH:midday_flat": {
+      "demand_level": "HIGH",
+      "temporal_profile": "midday_flat",
+      "seed": 1212,
+      "requests": 120,
+      "single_pass": {
+        "processed": 120,
+        "shared_trips": 26,
+        "individual_trips": 34,
+        "assignments_created": 60,
+        "batching_rate_pct": 43.3,
+        "avg_delay_min": 5.76,
+        "avg_utilization_pct": 64.04,
+        "total_distance_km": 837.09,
+        "total_fuel_l": 41.26,
+        "co2_emitted_kg": 94.9
+      },
+      "waves": {
+        "waves": 1,
+        "trips_total": 92,
+        "total_distance_km": 1170.67,
+        "total_fuel_l": 62.99,
+        "total_co2_kg": 144.87,
+        "requests_completed": 120,
+        "requests_failed": 0,
+        "completion_rate_pct": 100.0
+      }
+    },
+    "HIGH:evening_peak": {
+      "demand_level": "HIGH",
+      "temporal_profile": "evening_peak",
+      "seed": 1213,
+      "requests": 120,
+      "single_pass": {
+        "processed": 120,
+        "shared_trips": 50,
+        "individual_trips": 10,
+        "assignments_created": 60,
+        "batching_rate_pct": 83.3,
+        "avg_delay_min": 5.59,
+        "avg_utilization_pct": 79.7,
+        "total_distance_km": 907.68,
+        "total_fuel_l": 44.97,
+        "co2_emitted_kg": 103.43
+      },
+      "waves": {
+        "waves": 1,
+        "trips_total": 66,
+        "total_distance_km": 996.46,
+        "total_fuel_l": 55.19,
+        "total_co2_kg": 126.93,
+        "requests_completed": 120,
+        "requests_failed": 0,
+        "completion_rate_pct": 100.0
+      }
+    },
+    "HIGH:night_sparse": {
+      "demand_level": "HIGH",
+      "temporal_profile": "night_sparse",
+      "seed": 1214,
+      "requests": 120,
+      "single_pass": {
+        "processed": 120,
+        "shared_trips": 34,
+        "individual_trips": 26,
+        "assignments_created": 60,
+        "batching_rate_pct": 56.7,
+        "avg_delay_min": 6.21,
+        "avg_utilization_pct": 72.14,
+        "total_distance_km": 907.47,
+        "total_fuel_l": 44.06,
+        "co2_emitted_kg": 101.34
+      },
+      "waves": {
+        "waves": 1,
+        "trips_total": 80,
+        "total_distance_km": 1118.86,
+        "total_fuel_l": 59.42,
+        "total_co2_kg": 136.66,
+        "requests_completed": 120,
+        "requests_failed": 0,
+        "completion_rate_pct": 100.0
+      }
+    }
+  },
+  "method_notes": "Temporal profiles are applied to the request_timestamp field that the current DMFE time-compatibility gate and routing time dimension read.  No fake per-request time-window column is introduced.  All 8 profiles executed; none skipped.",
+  "limitations": "Synthetic robustness sweep over synthetic requests, not real multi-city / real-world data.  completion_rate_pct counts DISPATCHED requests (Assigned|Completed), i.e. dispatch success, not a finished-trip rate."
+}

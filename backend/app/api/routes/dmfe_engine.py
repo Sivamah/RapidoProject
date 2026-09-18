@@ -335,6 +335,40 @@ def get_queue(
     return [request_to_dict(r) for r in pending]
 
 
+def _stop_coordinates_for(db, trips) -> dict:
+    """
+    Pickup/drop coordinates for every request referenced by `trips`, in ONE
+    query, keyed by request id.
+
+    A trip's stop list stores request ids only, and its requests are dispatched
+    (not pending), so no client-side feed can resolve them.  Resolving here is
+    additive and costs a single indexed IN-lookup per response.
+    """
+    ids = set()
+    for t in trips:
+        ids.update(json_loads(t.request_ids_json, []))
+    if not ids:
+        return {}
+    rows = (
+        db.query(
+            SimulationRequest.id,
+            SimulationRequest.request_type,
+            SimulationRequest.pickup_lat, SimulationRequest.pickup_lng,
+            SimulationRequest.drop_lat, SimulationRequest.drop_lng,
+        )
+        .filter(SimulationRequest.id.in_(ids))
+        .all()
+    )
+    return {
+        r.id: {
+            "request_type": r.request_type,
+            "pickup_lat": r.pickup_lat, "pickup_lng": r.pickup_lng,
+            "drop_lat": r.drop_lat, "drop_lng": r.drop_lng,
+        }
+        for r in rows
+    }
+
+
 @router.get("/trips")
 def list_trips(
     db: SessionDep,
@@ -349,7 +383,8 @@ def list_trips(
     if status:
         q = q.filter(Trip.status == status)
     trips = q.order_by(Trip.created_at.desc()).limit(limit).all()
-    return [trip_to_dict(t) for t in trips]
+    coords = _stop_coordinates_for(db, trips)
+    return [trip_to_dict(t, coords) for t in trips]
 
 
 @router.get("/trips/{trip_id}")
@@ -358,7 +393,7 @@ def get_trip(trip_id: int, db: SessionDep, current_user: CurrentUser):
     trip = db.query(Trip).filter(Trip.id == trip_id).first()
     if trip is None:
         raise HTTPException(status_code=404, detail="Trip not found")
-    return trip_to_dict(trip)
+    return trip_to_dict(trip, _stop_coordinates_for(db, [trip]))
 
 
 @router.post("/trips/{trip_id}/complete")

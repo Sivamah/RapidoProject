@@ -1,0 +1,145 @@
+{
+  "experiment": "R1.3 joint-optimization baseline (OR-Tools VRPPD)",
+  "reviewer_mapping": "R1.3",
+  "timestamp": "2026-09-03T08:30:58.483616+00:00",
+  "workloads": [
+    50,
+    100
+  ],
+  "capacities": [
+    2,
+    4
+  ],
+  "seed_convention": "seed = 1000 + workload",
+  "results": {
+    "50": {
+      "seed": 1050,
+      "workload": 50,
+      "fleet_size": 60,
+      "n_requests": 50,
+      "dmfe_sequential": {
+        "wall_s": 1.088,
+        "total_distance_km": 381.2,
+        "total_fuel_l": 17.695,
+        "total_co2_kg": 40.698,
+        "n_trips": 32,
+        "n_shared_trips": 16,
+        "n_individual_trips": 16
+      },
+      "joint_baseline": {
+        "cap_2": {
+          "status": "FEASIBLE",
+          "wall_s": 0.385,
+          "objective_value": 642370,
+          "n_vehicles_model": 25,
+          "n_vehicles_used": 25,
+          "n_requests_assigned": 50,
+          "n_requests_unassigned": 0,
+          "total_distance_km": 512.39,
+          "total_fuel_l": 35.995,
+          "total_co2_kg": 82.788,
+          "average_requests_per_vehicle": 2.0,
+          "distance_saving_vs_individual_pct": -19.8,
+          "fuel_saving_vs_individual_pct": -110.4,
+          "individual_baseline_km": 427.62,
+          "individual_baseline_fuel_l": 17.105,
+          "n_routes": 25
+        },
+        "cap_4": {
+          "status": "FEASIBLE",
+          "wall_s": 0.326,
+          "objective_value": 418485,
+          "n_vehicles_model": 13,
+          "n_vehicles_used": 13,
+          "n_requests_assigned": 50,
+          "n_requests_unassigned": 0,
+          "total_distance_km": 382.59,
+          "total_fuel_l": 28.868,
+          "total_co2_kg": 66.396,
+          "average_requests_per_vehicle": 3.85,
+          "distance_saving_vs_individual_pct": 10.5,
+          "fuel_saving_vs_individual_pct": -68.8,
+          "individual_baseline_km": 427.62,
+          "individual_baseline_fuel_l": 17.105,
+          "n_routes": 13
+        }
+      },
+      "comparison": {
+        "dmfe_distance_km": 381.2,
+        "joint_cap2_distance_km": 512.39,
+        "joint_cap4_distance_km": 382.59,
+        "joint_cap2_better_than_dmfe_km": 131.19,
+        "joint_cap2_better_than_dmfe_pct": 34.4,
+        "joint_cap4_better_than_dmfe_km": 1.39,
+        "joint_cap4_better_than_dmfe_pct": 0.4
+      },
+      "scope_note": "The joint baseline solves the multi-vehicle PDPTW routing and assignment sub-problem in a single OR-Tools model.  It does NOT include DMFE's 5-factor compatibility scoring, driver quality selection, or adaptive threshold logic.  The comparison isolates the value of joint vs sequential vehicle assignment at equal capacity (cap=2 equals DMFE's max batch size)."
+    },
+    "100": {
+      "seed": 1100,
+      "workload": 100,
+      "fleet_size": 60,
+      "n_requests": 100,
+      "dmfe_sequential": {
+        "wall_s": 1.608,
+        "total_distance_km": 750.31,
+        "total_fuel_l": 39.506,
+        "total_co2_kg": 90.864,
+        "n_trips": 56,
+        "n_shared_trips": 40,
+        "n_individual_trips": 16
+      },
+      "joint_baseline": {
+        "cap_2": {
+          "status": "FEASIBLE",
+          "wall_s": 1.264,
+          "objective_value": 1213158,
+          "n_vehicles_model": 50,
+          "n_vehicles_used": 50,
+          "n_requests_assigned": 100,
+          "n_requests_unassigned": 0,
+          "total_distance_km": 932.33,
+          "total_fuel_l": 43.565,
+          "total_co2_kg": 100.199,
+          "average_requests_per_vehicle": 2.0,
+          "distance_saving_vs_individual_pct": -12.3,
+          "fuel_saving_vs_individual_pct": -31.2,
+          "individual_baseline_km": 830.2,
+          "individual_baseline_fuel_l": 33.208,
+          "n_routes": 50
+        },
+        "cap_4": {
+          "status": "FEASIBLE",
+          "wall_s": 1.787,
+          "objective_value": 717962,
+          "n_vehicles_model": 25,
+          "n_vehicles_used": 25,
+          "n_requests_assigned": 100,
+          "n_requests_unassigned": 0,
+          "total_distance_km": 598.39,
+          "total_fuel_l": 41.989,
+          "total_co2_kg": 96.575,
+          "average_requests_per_vehicle": 4.0,
+          "distance_saving_vs_individual_pct": 27.9,
+          "fuel_saving_vs_individual_pct": -26.4,
+          "individual_baseline_km": 830.2,
+          "individual_baseline_fuel_l": 33.208,
+          "n_routes": 25
+        }
+      },
+      "comparison": {
+        "dmfe_distance_km": 750.31,
+        "joint_cap2_distance_km": 932.33,
+        "joint_cap4_distance_km": 598.39,
+        "joint_cap2_better_than_dmfe_km": 182.02,
+        "joint_cap2_better_than_dmfe_pct": 24.3,
+        "joint_cap4_better_than_dmfe_km": -151.92,
+        "joint_cap4_better_than_dmfe_pct": -20.2
+      },
+      "scope_note": "The joint baseline solves the multi-vehicle PDPTW routing and assignment sub-problem in a single OR-Tools model.  It does NOT include DMFE's 5-factor compatibility scoring, driver quality selection, or adaptive threshold logic.  The comparison isolates the value of joint vs sequential vehicle assignment at equal capacity (cap=2 equals DMFE's max batch size)."
+    }
+  },
+  "scope": "Multi-vehicle Pickup-and-Delivery solved by OR-Tools as a single model over the full request set.  Jointly assigns requests to vehicles AND routes each vehicle optimally.  Cap = max requests per vehicle; cap=2 matches DMFE's max batch size, cap=4 is an upper bound on joint batching value.  Single fixed depot = city centre (11.0168 N, 76.9558 E).  Does NOT include DMFE compatibility scoring or driver selection.",
+  "method_notes": "Same fleet seeded by the evaluation harness and same request generator (40/40/20 ride/food/parcel).  Arc cost = road-adjusted haversine distance.  Constraints: pickup-before-delivery, same vehicle, capacity = CAP requests per vehicle.  Load dimension tracks number of pickups per vehicle.  Each routed vehicle starts AND returns to the central depot, so the joint distance includes return-leg deadhead that DMFE's per-trip distance figure does not - this biases joint numbers upward at low cap.",
+  "limitations": "Does not include DMFE's 5-factor compatibility, driver quality selection, or adaptive logic -- only the routing/assignment sub-problem.  Free-fleet mileage assumed for fuel.  Single central depot rather than per-vehicle starting positions.  Synthetic requests; not a real-world dispatch study."
+}

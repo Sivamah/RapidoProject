@@ -68,6 +68,64 @@ def upload_dataset(
     db.add(dataset)
     db.commit()
     db.refresh(dataset)
+
+    # Import logic for vehicles
+    if data_type == "vehicle" and file_type == "csv":
+        import csv
+        from io import StringIO
+        from app.db.models import Vehicle, Provider
+
+        # Ensure we have a default provider
+        provider = db.query(Provider).first()
+        if not provider:
+            provider = Provider(name="Default Provider", provider_type="Fleet")
+            db.add(provider)
+            db.commit()
+            db.refresh(provider)
+
+        csv_file = StringIO(content.decode("utf-8"))
+        reader = csv.DictReader(csv_file)
+
+        for row in reader:
+            vehicle_id = row.get("vehicle_id", "")
+            if not vehicle_id:
+                continue
+
+            vehicle = db.query(Vehicle).filter(Vehicle.name == vehicle_id).first()
+            if not vehicle:
+                vehicle = Vehicle(
+                    provider_id=provider.id,
+                    name=vehicle_id,
+                    registration_number=vehicle_id,
+                    # default required fields to prevent null constraint errors
+                    vehicle_type=row.get("vehicle_type", "Car")
+                )
+                db.add(vehicle)
+
+            if "vehicle_type" in row:
+                vehicle.vehicle_type = row["vehicle_type"]
+            if "capacity" in row:
+                try:
+                    vehicle.capacity = int(row["capacity"])
+                except ValueError:
+                    pass
+            if "status" in row:
+                vehicle.status = row["status"]
+            if "latitude" in row:
+                try:
+                    vehicle.current_lat = float(row["latitude"])
+                except ValueError:
+                    pass
+            if "longitude" in row:
+                try:
+                    vehicle.current_lng = float(row["longitude"])
+                except ValueError:
+                    pass
+            if "fuel_type" in row:
+                vehicle.fuel_type = row["fuel_type"]
+
+        db.commit()
+
     return dataset
 
 

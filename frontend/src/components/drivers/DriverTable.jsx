@@ -10,6 +10,7 @@ const STATUS_STYLE = {
 export default function DriverTable({ drivers = [], providers = [], vehicles = [], onAdd, onEdit, onDelete }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editDriver, setEditDriver] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -47,24 +48,36 @@ export default function DriverTable({ drivers = [], providers = [], vehicles = [
     });
   };
 
-  const handleSubmitAdd = (e) => {
+  const handleSubmitAdd = async (e) => {
     e.preventDefault();
-    onAdd({
-      ...formData,
-      provider_id: formData.provider_id ? parseInt(formData.provider_id) : null,
-      assigned_vehicle_id: formData.assigned_vehicle_id ? parseInt(formData.assigned_vehicle_id) : null,
-    });
-    setShowAddModal(false);
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await onAdd({
+        ...formData,
+        provider_id: formData.provider_id ? parseInt(formData.provider_id) : null,
+        assigned_vehicle_id: formData.assigned_vehicle_id ? parseInt(formData.assigned_vehicle_id) : null,
+      });
+    } finally {
+      setSubmitting(false);
+      setShowAddModal(false);
+    }
   };
 
-  const handleSubmitEdit = (e) => {
+  const handleSubmitEdit = async (e) => {
     e.preventDefault();
-    onEdit(editDriver.id, {
-      ...formData,
-      provider_id: formData.provider_id ? parseInt(formData.provider_id) : null,
-      assigned_vehicle_id: formData.assigned_vehicle_id ? parseInt(formData.assigned_vehicle_id) : null,
-    });
-    setEditDriver(null);
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await onEdit(editDriver.id, {
+        ...formData,
+        provider_id: formData.provider_id ? parseInt(formData.provider_id) : null,
+        assigned_vehicle_id: formData.assigned_vehicle_id ? parseInt(formData.assigned_vehicle_id) : null,
+      });
+    } finally {
+      setSubmitting(false);
+      setEditDriver(null);
+    }
   };
 
   return (
@@ -249,9 +262,10 @@ export default function DriverTable({ drivers = [], providers = [], vehicles = [
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg"
+                  disabled={submitting}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Save Driver
+                  {submitting ? 'Saving…' : 'Save Driver'}
                 </button>
               </div>
             </form>
@@ -315,9 +329,10 @@ export default function DriverTable({ drivers = [], providers = [], vehicles = [
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg"
+                  disabled={submitting}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Update Driver
+                  {submitting ? 'Updating…' : 'Update Driver'}
                 </button>
               </div>
             </form>

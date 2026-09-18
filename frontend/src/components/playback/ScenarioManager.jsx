@@ -3,6 +3,7 @@ import { Layers, Plus, Trash2 } from 'lucide-react';
 
 export default function ScenarioManager({ scenarios = [], onCreateScenario, onDeleteScenario }) {
   const [showModal, setShowModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -11,21 +12,27 @@ export default function ScenarioManager({ scenarios = [], onCreateScenario, onDe
     weather_condition: 'Clear',
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onCreateScenario({
-      ...formData,
-      traffic_multiplier: parseFloat(formData.traffic_multiplier),
-      demand_multiplier: parseFloat(formData.demand_multiplier),
-    });
-    setShowModal(false);
-    setFormData({
-      name: '',
-      description: '',
-      traffic_multiplier: 1.2,
-      demand_multiplier: 1.5,
-      weather_condition: 'Clear',
-    });
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await onCreateScenario({
+        ...formData,
+        traffic_multiplier: parseFloat(formData.traffic_multiplier),
+        demand_multiplier: parseFloat(formData.demand_multiplier),
+      });
+      setShowModal(false);
+      setFormData({
+        name: '',
+        description: '',
+        traffic_multiplier: 1.2,
+        demand_multiplier: 1.5,
+        weather_condition: 'Clear',
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -182,9 +189,10 @@ export default function ScenarioManager({ scenarios = [], onCreateScenario, onDe
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg"
+                  disabled={submitting}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Save Scenario
+                  {submitting ? 'Saving…' : 'Save Scenario'}
                 </button>
               </div>
             </form>

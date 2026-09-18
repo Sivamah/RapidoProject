@@ -8,6 +8,12 @@ BACKEND_DIR = Path(__file__).resolve().parents[2]
 class Settings(BaseSettings):
     PROJECT_NAME: str = "AI Orchestration Platform"
 
+    # Declared deployment mode. Defaults to "development" so a fresh local
+    # checkout still boots with the insecure dev fallbacks below (with a
+    # warning). Any other value (e.g. "production") disables those
+    # fallbacks and makes the app refuse to start rather than run insecure.
+    ENVIRONMENT: str = "development"
+
     DATABASE_URL: Optional[str] = None
 
     POSTGRES_USER:     Optional[str] = None
@@ -16,11 +22,11 @@ class Settings(BaseSettings):
     POSTGRES_PORT:     Optional[str] = "5432"
     POSTGRES_DB:       Optional[str] = None
 
-    # No hard default: the app exits at import time if SECRET_KEY is missing
-    # from the environment/.env, which is a common cause of "backend won't
-    # start" on fresh deploys.  Keep a dev fallback so the platform always
-    # boots; a startup warning is logged when the fallback is used.
-    SECRET_KEY: str = "aiorch-dev-secret-change-me-in-production"
+    # No hard default: when ENVIRONMENT != "development" and SECRET_KEY is
+    # unset (or still equals the known dev fallback), the app raises at
+    # import time below instead of starting insecurely. In development mode
+    # only, a dev fallback is applied and a startup warning is logged.
+    SECRET_KEY: Optional[str] = None
 
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
 
@@ -56,10 +62,25 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
+_DEV_SECRET_FALLBACK = "aiorch-dev-secret-change-me-in-production"
+_is_dev = settings.ENVIRONMENT == "development"
 
-if settings.SECRET_KEY in ("aiorch-dev-secret-change-me-in-production", "", None):
-    import logging
-    logging.getLogger("aiorch").warning(
-        "SECRET_KEY not configured — using insecure development fallback. "
-        "Set SECRET_KEY in backend/.env for production."
+if settings.SECRET_KEY in ("", None):
+    if _is_dev:
+        import logging
+        logging.getLogger("aiorch").warning(
+            "SECRET_KEY not configured — using insecure development fallback. "
+            "Set SECRET_KEY in backend/.env before deploying with ENVIRONMENT != 'development'."
+        )
+        settings.SECRET_KEY = _DEV_SECRET_FALLBACK
+    else:
+        raise RuntimeError(
+            "SECRET_KEY is not set and ENVIRONMENT is not 'development'. Refusing to start "
+            "with an insecure default outside development. Set SECRET_KEY in backend/.env "
+            "(or set ENVIRONMENT=development for local use)."
+        )
+elif settings.SECRET_KEY == _DEV_SECRET_FALLBACK and not _is_dev:
+    raise RuntimeError(
+        "SECRET_KEY is set to the known development fallback value outside development. "
+        "Set a real SECRET_KEY in backend/.env."
     )

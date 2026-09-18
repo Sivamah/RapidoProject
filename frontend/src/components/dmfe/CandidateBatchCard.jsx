@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { Bike, ShoppingBag, Package, ChevronDown, ChevronUp, Clock } from 'lucide-react';
+import { Bike, ShoppingBag, Package, ChevronDown, ChevronUp, Clock, UserPlus } from 'lucide-react';
+import toast from 'react-hot-toast';
+import api from '../../services/api';
 import CompatibilityGauge from './CompatibilityGauge';
 import FactorBreakdown from './FactorBreakdown';
 
@@ -27,10 +29,40 @@ function RequestPill({ req }) {
   );
 }
 
-export default function CandidateBatchCard({ batch }) {
+export default function CandidateBatchCard({ batch, onAssigned }) {
   const [expanded, setExpanded] = useState(false);
+  const [assigning, setAssigning] = useState(false);
 
   const requests = batch.requests_summary || [];
+
+  /**
+   * "Assign Driver & Vehicle" — the confirmed-partial "driver assignment"
+   * AND "vehicle assignment" integrations, satisfied by ONE action: the
+   * engine's POST /api/dmfe/assign/driver already selects the best
+   * available driver AND vehicle together (dispatch_trip persists both on
+   * the resulting Trip), so this is not two buttons wired to two
+   * endpoints — it is the one endpoint that already does both, exposed in
+   * the UI for the first time.
+   */
+  const handleAssign = async (e) => {
+    e.stopPropagation();
+    if (assigning || !batch.id) return;
+    setAssigning(true);
+    try {
+      const res = await api.post('/dmfe/assign/driver', { batch_id: batch.id });
+      const { driver, vehicle } = res.data || {};
+      toast.success(
+        driver && vehicle
+          ? `Assigned ${driver.name} · ${vehicle.name} to ${batch.batch_code}`
+          : `${batch.batch_code} dispatched`
+      );
+      onAssigned?.();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Could not assign a driver/vehicle for this batch');
+    } finally {
+      setAssigning(false);
+    }
+  };
 
   // A solo / "Individual" trip has no PAIR, so there is no pairwise
   // compatibility score to show.  The engine persists compatibility_score = 0.0
@@ -88,6 +120,24 @@ export default function CandidateBatchCard({ batch }) {
             <RequestPill key={req.id} req={req} />
           ))}
         </div>
+
+        {/* Assign Driver & Vehicle — only offered while the batch has not
+            already been dispatched. `dispatch_trip` on the backend is not
+            idempotent-safe to call twice for the same batch, so the action
+            disappears once `status === 'Dispatched'` rather than relying on
+            the user to notice the badge above. */}
+        {batch.status !== 'Dispatched' && (
+          <button
+            type="button"
+            onClick={handleAssign}
+            disabled={assigning || !batch.id}
+            className="mt-3 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Select and assign the best available driver + vehicle for this batch"
+          >
+            <UserPlus className={`h-3.5 w-3.5 ${assigning ? 'animate-pulse' : ''}`} />
+            {assigning ? 'Assigning…' : 'Assign Driver & Vehicle'}
+          </button>
+        )}
       </div>
 
       {/* Expandable detail section */}

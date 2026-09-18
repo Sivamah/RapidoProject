@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { MapContainer, TileLayer, Marker as LeafletMarker, Popup as LeafletPopup } from 'react-leaflet';
 import L from 'leaflet';
 import { Navigation, Truck, RefreshCw } from 'lucide-react';
@@ -30,6 +30,8 @@ function createVehicleIcon(status) {
 }
 
 export default function VehicleLocationMap({ locations = [], onRefresh }) {
+  const [selectedVehicle, setSelectedVehicle] = useState(null);
+
   return (
     <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 shadow-sm space-y-4">
       {/* Map Header */}

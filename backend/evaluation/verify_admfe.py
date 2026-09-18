@@ -516,7 +516,7 @@ def test_end_to_end(db: Session) -> None:
     check("assignments created", result.assignments_created > 0,
           str(result.assignments_created))
     check("no double processing (shared + individual disjoint)",
-          total_covered + len(result.unassigned) == 14 or True)  # coverage sanity
+          total_covered + len(result.unassigned) == 14)
 
     # Each request is either Assigned or still Pending (unassigned)
     statuses = {r.id: r.status for r in reqs}

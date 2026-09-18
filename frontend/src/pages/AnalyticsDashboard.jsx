@@ -72,10 +72,11 @@ export default function AnalyticsDashboard() {
     }
   }, [filters]);
 
-  // Polling setup: 2.5s interval
+  // Polling setup: 10s interval
   useEffect(() => {
     fetchAnalytics();
-    pollRef.current = setInterval(() => { if (document.visibilityState === 'visible') fetchAnalytics(); }, 2500);
+    // Analytics aggregation changes slowly; 10 s is sufficient and cuts load 4×.
+    pollRef.current = setInterval(() => { if (document.visibilityState === 'visible') fetchAnalytics(); }, 10000);
     return () => clearInterval(pollRef.current);
   }, [fetchAnalytics]);
 
@@ -102,7 +103,7 @@ export default function AnalyticsDashboard() {
         description="Real-time throughput, provider performance and request lifecycle metrics across the network."
         actions={
           <div className="flex items-center gap-2.5">
-            <StatusBadge tone="success" label="Auto-refresh 2.5s" pulse />
+            <StatusBadge tone="success" label="Auto-refresh 10s" pulse />
             <ReportExport analyticsData={analyticsData} filters={filters} />
           </div>
         }

@@ -58,7 +58,9 @@ def create_driver(data: DriverCreate, db: SessionDep, current_user: CurrentUser)
         category="Success",
         event_type="provider_mgmt",
     )
-    return driver_service.get_drivers(db, search=str(driver.id), limit=1)[0]
+    # Serialize the row already in hand instead of re-running the full
+    # filtered/ordered driver list query just to re-fetch it (Finding #11).
+    return driver_service.serialize_driver(db, driver)
 
 
 @router.get("/api/drivers/{driver_id}", response_model=DriverResponse)
@@ -98,7 +100,9 @@ def update_driver(driver_id: int, data: DriverUpdate, db: SessionDep, current_us
         db.add(hist)
         db.commit()
 
-    return driver_service.get_drivers(db, search=str(driver_id), limit=1)[0]
+    # Serialize the row already in hand instead of re-running the full
+    # filtered/ordered driver list query just to re-fetch it (Finding #11).
+    return driver_service.serialize_driver(db, driver)
 
 
 @router.delete("/api/drivers/{driver_id}")
@@ -171,7 +175,9 @@ def create_vehicle(data: FullVehicleCreate, db: SessionDep, current_user: Curren
         category="Success",
         event_type="provider_mgmt",
     )
-    return driver_service.get_vehicles(db, search=str(vehicle.name), limit=1)[0]
+    # Serialize the row already in hand instead of re-running the full
+    # filtered/ordered vehicle list query just to re-fetch it (Finding #11).
+    return driver_service.serialize_vehicle(db, vehicle)
 
 
 @router.patch("/api/vehicles/{vehicle_id}", response_model=FullVehicleResponse)
@@ -186,7 +192,9 @@ def update_vehicle(vehicle_id: int, data: FullVehicleUpdate, db: SessionDep, cur
 
     db.commit()
     db.refresh(vehicle)
-    return driver_service.get_vehicles(db, search=str(vehicle.name), limit=1)[0]
+    # Serialize the row already in hand instead of re-running the full
+    # filtered/ordered vehicle list query just to re-fetch it (Finding #11).
+    return driver_service.serialize_vehicle(db, vehicle)
 
 
 @router.delete("/api/vehicles/{vehicle_id}")

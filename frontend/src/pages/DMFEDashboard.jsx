@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Play, RefreshCw, ArrowRight, History, Layers, XCircle } from 'lucide-react';
+import { Play, RefreshCw, ArrowRight, History, Layers, XCircle, Truck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api from '../services/api';
@@ -19,6 +19,7 @@ export default function DMFEDashboard() {
   const [history, setHistory] = useState([]);
 
   const [analyzing, setAnalyzing] = useState(false);
+  const [dispatching, setDispatching] = useState(false);
   const [loadingQueue, setLoadingQueue] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [activeTab, setActiveTab] = useState('batches');
@@ -53,12 +54,15 @@ export default function DMFEDashboard() {
       // The pipeline dispatches analysis batches (Pending -> Dispatched), so
       // a Pending-only fetch makes the "Compatible Batches" tab go empty the
       // moment a run completes.  Show both so created batches stay visible.
-      const [compatRes, dispatchedRes, rejRes] = await Promise.all([
+      // Individual (solo trip) rows must also be fetched — they have
+      // status="Individual" and were previously invisible after page reload.
+      const [compatRes, dispatchedRes, rejRes, indivRes] = await Promise.all([
         api.get(`/dmfe/batches?status=Pending&limit=50${demoParam}`),
         api.get(`/dmfe/batches?status=Dispatched&limit=50${demoParam}`),
         api.get(`/dmfe/batches?status=Rejected&limit=50${demoParam}`),
+        api.get(`/dmfe/batches?status=Individual&limit=50${demoParam}`),
       ]);
-      const merged = [...(compatRes.data || []), ...(dispatchedRes.data || [])];
+      const merged = [...(compatRes.data || []), ...(dispatchedRes.data || []), ...(indivRes.data || [])];
       const seen = new Set();
       const deduped = [];
       // Solo ("Individual") rows are persisted LAST in each run
@@ -99,12 +103,13 @@ export default function DMFEDashboard() {
         if (document.visibilityState !== 'visible') return;
         fetchPendingQueue();
         fetchStats();
+        fetchBatches();
       }, 5000);
     } else {
       clearInterval(autoRefreshRef.current);
     }
     return () => clearInterval(autoRefreshRef.current);
-  }, [autoRefresh, fetchPendingQueue, fetchStats]);
+  }, [autoRefresh, fetchPendingQueue, fetchStats, fetchBatches]);
 
   /**
    * Demo Mode filters the queue and the batch list to requests tagged
@@ -165,6 +170,35 @@ export default function DMFEDashboard() {
     }
   };
 
+  /**
+   * "Dispatch Now" — the confirmed-partial "dispatch" integration.
+   * POST /api/dmfe/run runs the FULL Phase 9 pipeline (Compatibility ->
+   * Batching -> Decision -> OR-Tools route -> Driver selection -> Trip
+   * assignment) in one call; "Run Analysis" above only exercises the
+   * older /analyze endpoint (compatibility + batching, no routing/
+   * assignment). Nothing about the engine itself changes here — this is
+   * strictly a new UI entry point onto an existing, already-tested route.
+   */
+  const handleDispatchNow = async () => {
+    if (dispatching) return;
+    setDispatching(true);
+    try {
+      const res = await api.post('/dmfe/run', { limit: 200 });
+      const result = res.data || {};
+      await Promise.all([fetchStats(), fetchHistory(), fetchPendingQueue(), fetchBatches()]);
+      const unassignedCount = result.unassigned?.length || 0;
+      toast.success(
+        `Dispatch complete: ${result.shared_trips ?? 0} shared + ${result.individual_trips ?? 0} individual trip(s), `
+        + `${result.assignments_created ?? 0} assignment(s)`
+        + (unassignedCount ? `, ${unassignedCount} unassigned` : '')
+      );
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Dispatch failed — check server logs');
+    } finally {
+      setDispatching(false);
+    }
+  };
+
   const TABS = [
     { id: 'batches', label: 'Created Batches', icon: Layers, count: compatBatches.length },
     { id: 'rejected', label: 'Rejected', icon: XCircle, count: rejectedBatches.length },
@@ -219,6 +253,17 @@ export default function DMFEDashboard() {
             >
               <Play className={`h-4 w-4 ${analyzing ? 'animate-pulse' : ''}`} />
               {analyzing ? 'Analyzing…' : 'Run Analysis'}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDispatchNow}
+              disabled={dispatching}
+              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Run the full pipeline: compatibility, batching, OR-Tools routing, and driver/vehicle assignment"
+            >
+              <Truck className={`h-4 w-4 ${dispatching ? 'animate-pulse' : ''}`} />
+              {dispatching ? 'Dispatching…' : 'Dispatch Now'}
             </button>
           </div>
         }
@@ -314,7 +359,13 @@ export default function DMFEDashboard() {
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
               >
-                {activeTab === 'batches' && <BatchesPanel batches={compatBatches} loading={analyzing} />}
+                {activeTab === 'batches' && (
+                  <BatchesPanel
+                    batches={compatBatches}
+                    loading={analyzing}
+                    onAssigned={() => { fetchBatches(); fetchStats(); fetchPendingQueue(); }}
+                  />
+                )}
                 {activeTab === 'rejected' && <RejectedRequestsPanel rejectedBatches={rejectedBatches} />}
                 {activeTab === 'history' && (
                   <div className="surface-card rounded-[22px] overflow-hidden">

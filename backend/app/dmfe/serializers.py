@@ -56,7 +56,53 @@ def request_to_dict(r: SimulationRequest) -> Dict[str, Any]:
     }
 
 
-def trip_to_dict(t: Trip) -> Dict[str, Any]:
+def resolve_stop_coordinates(
+    stops: List[Dict[str, Any]],
+    coords_by_request: Optional[Dict[int, Dict[str, float]]],
+) -> List[Dict[str, Any]]:
+    """
+    Attach pickup/drop coordinates to an OR-Tools stop list.
+
+    `trips.stop_order_json` stores only (request_id, action, arrival_min) — the
+    coordinates live on the SimulationRequest rows.  Every consumer that wants
+    to draw a trip therefore has to re-join the two, and the live map used to
+    attempt that join against `/simulation/queue`, which by definition contains
+    only PENDING requests.  A dispatched trip's requests are never pending, so
+    the join always produced zero stops and active trips could not be drawn at
+    all.  Resolving here keeps the join next to the data that owns it, exactly
+    as `xai_service._build_trip_link` already does.
+
+    Purely additive: `lat`/`lng` are added to each stop, the ordering is
+    untouched, and a stop whose request cannot be resolved keeps its original
+    shape without invented coordinates.
+    """
+    if not coords_by_request:
+        return stops
+    out = []
+    for s in stops:
+        if not isinstance(s, dict):
+            continue
+        c = coords_by_request.get(s.get("request_id"))
+        if c is None:
+            out.append(s)
+            continue
+        is_drop = s.get("action") == "drop"
+        lat = c["drop_lat"] if is_drop else c["pickup_lat"]
+        lng = c["drop_lng"] if is_drop else c["pickup_lng"]
+        enriched = dict(s)
+        if lat is not None and lng is not None and not (lat == 0 and lng == 0):
+            enriched["lat"] = float(lat)
+            enriched["lng"] = float(lng)
+        if c.get("request_type"):
+            enriched["request_type"] = c["request_type"]
+        out.append(enriched)
+    return out
+
+
+def trip_to_dict(
+    t: Trip,
+    coords_by_request: Optional[Dict[int, Dict[str, float]]] = None,
+) -> Dict[str, Any]:
     return {
         "id": t.id,
         "trip_code": t.trip_code,
@@ -66,7 +112,9 @@ def trip_to_dict(t: Trip) -> Dict[str, Any]:
         "request_ids": json_loads(t.request_ids_json, []),
         "is_shared": t.is_shared,
         "status": t.status,
-        "stop_order": json_loads(t.stop_order_json, []),
+        "stop_order": resolve_stop_coordinates(
+            json_loads(t.stop_order_json, []), coords_by_request,
+        ),
         "total_distance_km": t.total_distance_km,
         "total_duration_min": t.total_duration_min,
         "eta_min": t.eta_min,

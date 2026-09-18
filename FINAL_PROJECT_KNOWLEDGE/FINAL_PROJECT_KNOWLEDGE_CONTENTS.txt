@@ -1,0 +1,19 @@
+FINAL_PROJECT_KNOWLEDGE — package contents
+Generated: 2026-09-11T09:20:02Z
+
+total 276
+drwxr-xr-x  2 root   root    4096 Sep 11 09:20 .
+drwxr-xr-x 15 claude claude  4096 Sep 11 09:04 ..
+-rw-r--r--  1 root   root   32527 Sep 11 09:10 BACKEND_OPTIMIZATION.md
+-rw-r--r--  1 root   root   32316 Sep 11 09:18 FILE_MANIFEST.csv
+-rw-r--r--  1 root   root   10548 Sep 11 09:15 FINAL_ARCHITECTURE.md
+-rw-r--r--  1 root   root   38753 Sep 11 09:13 FINAL_CLEANUP_RECOMMENDATIONS.md
+-rw-r--r--  1 root   root      78 Sep 11 09:20 FINAL_PROJECT_KNOWLEDGE_CONTENTS.txt
+-rw-r--r--  1 root   root    8881 Sep 11 09:16 FINAL_PROJECT_READINESS.md
+-rw-r--r--  1 root   root   17704 Sep 11 09:09 FRONTEND_BACKEND_CONNECTION_MATRIX.md
+-rw-r--r--  1 root   root   31839 Sep 11 09:11 FRONTEND_OPTIMIZATION.md
+-rw-r--r--  1 root   root   12523 Sep 11 09:17 MASTER_PROJECT_CONTEXT.md
+-rw-r--r--  1 root   root   13996 Sep 11 09:16 OPTIMIZATION_ROADMAP.md
+-rw-r--r--  1 root   root    6236 Sep 11 09:19 README.md
+-rw-r--r--  1 root   root   35185 Sep 11 09:09 REVIEWER_AUDIT.md
+-rw-r--r--  1 root   root    7452 Sep 11 09:19 project_summary.json

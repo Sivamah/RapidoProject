@@ -293,7 +293,135 @@
 
 /* ── Keyframes ────────────────────────────────────────────────────────────── */
 
+/* Leaflet basemap treatment. Default is 'native' (LiveMapContainer.jsx),
+   which applies neither of the two rules below — the map renders OpenStreet-
+   Map's normal light "Carto" colors untouched, Leaflet's own light #ddd
+   background showing through wherever a tile is still loading, exactly like
+   Google Maps' own light basemap. The `.leaflet-dark` rules that follow are
+   an opt-in (VITE_MAP_TILE_TREATMENT=osm-dark) that tints the tiles dark
+   navy instead, kept for anyone who wants that look back. */
+
+/* Opt-in dark mode: pin the container background to the platform's dark
+   navy so it does not flash light while tiles are missing (offline, blocked,
+   or still loading). Note the compound selector: `leaflet-dark` and
+   `leaflet-container` are on the SAME element, and the two classes also give
+   this rule the specificity to beat Leaflet's own default. */
+.leaflet-container.leaflet-dark {
+  background: #0A0F1A;
+}
+
+/* Basemap treatment — every number below was measured, not guessed: real CSS
+   filters applied to OSM Carto's documented palette and sampled back out of
+   the rendered pixels.
+
+   Two dead ends were ruled out first:
+     • CARTO's dark basemaps watermark every anonymous tile with
+       "API KEY REQUIRED", so they cannot ship without a key.
+     • invert() flips OSM's polarity — OSM draws roads LIGHTER than land, so
+       inverting makes them DARKER than land. The previously shipped
+       `invert(1) brightness(0.62)` measured 1.07:1 for minor roads and 1.78:1
+       for motorways; an earlier attempt at `brightness(0.82) contrast(1.06)`
+       made it worse (1.04 / 2.25) by crushing land to rgb(7,6,3).
+
+   What this does instead:
+     1. LUMINANCE — invert, then LIFT (brightness > 1, contrast < 1) rather
+        than crush. `contrast()` below 1 pulls values toward mid-grey, which
+        opens up the shadow end where the whole road network lives.
+     2. HUE — hue-rotate leans the result cool. It cannot make a near-neutral
+        basemap truly navy (see the rejected-tint note below), so the ground
+        reads as a cool dark slate rather than deep navy.
+
+   Measured outcome (land vs feature contrast ratio):
+        motorway 3.03 : primary 1.40 : water 1.72 : minor 1.24
+   versus 1.78 / 1.15 / 1.27 / 1.07 for the version that shipped before, and
+   2.25 / 1.17 / 1.35 / 1.04 for the intermediate attempt that crushed land to
+   rgb(7,6,3).
+   Minor roads remain the weak step; that ceiling is inherent to filtering a
+   light basemap, which is why VITE_MAP_TILE_URL exists — point it at a native
+   dark tileset (with your own key) and set VITE_MAP_TILE_TREATMENT=native to
+   bypass this block entirely. */
+.leaflet-dark .admfe-base-tiles {
+  filter: invert(1) hue-rotate(185deg) brightness(1.32) contrast(0.74) saturate(0.5);
+}
+
+/* NOTE — a navy tint via `mix-blend-mode: color` on the tile pane was tried
+   and REJECTED. On an isolated bench it worked (land rgb(37,50,76), ladder
+   intact), but measured inside Leaflet's actual tile pane it blended against
+   the pane's backdrop rather than the tiles and flattened every road class to
+   ~1.1:1 — it destroyed the very thing it was meant to preserve. The tint is
+   therefore not applied; hue comes from hue-rotate alone, which on a
+   near-neutral basemap is subtle. A genuinely navy, road-crisp basemap needs
+   a native dark tileset — see VITE_MAP_TILE_URL. */
+
+/* Default treatment: no filter, so OSM's own light colors render untouched
+   (also correct for a tileset that is already dark and needs no lift/tint). */
+.leaflet-native-dark .leaflet-tile-pane { filter: none; }
+
+/* Fleet hover labels — shown on demand, never for every marker at once. */
+.admfe-tooltip.leaflet-tooltip {
+  background: rgba(10, 15, 26, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  color: #E6ECF5;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+}
+.admfe-tooltip.leaflet-tooltip::before { display: none; }
+
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.16); border-radius: 6px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.3); }
+
+
+/* ── Leaflet popup chrome ──────────────────────────────────────────────────
+   Leaflet ships its popup wrapper and tip as opaque white with #333 text, so
+   every popup rendered a white frame around the dark A-DMFE card inside it.
+   These rules replace that chrome with the platform's own dark glass. The
+   popup pane keeps Leaflet's z-index (700); the map wrapper's
+   `isolation: isolate` confines it to the map subtree, so it still sits above
+   map content and below the page's floating panels.
+
+   Each selector is qualified with `.leaflet-container` on purpose: Leaflet's
+   own rules are single-class and leaflet.css is injected after index.css, so
+   an unqualified rule ties on specificity and loses on source order — which
+   left the wrapper white while only the properties Leaflet does not set
+   (border, backdrop blur) took effect. */
+.leaflet-container .leaflet-popup-content-wrapper {
+  background: rgba(10, 15, 26, 0.92);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  color: #E6ECF5;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.62);
+  padding: 0;
+}
+.leaflet-container .leaflet-popup-content {
+  margin: 0;
+  color: #E6ECF5;
+  line-height: 1.45;
+}
+.leaflet-container .leaflet-popup-tip {
+  background: rgba(10, 15, 26, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: none;
+}
+.leaflet-container .leaflet-popup-close-button {
+  color: rgba(255, 255, 255, 0.45) !important;
+  padding: 6px 8px 0 0 !important;
+}
+.leaflet-container .leaflet-popup-close-button:hover { color: #ffffff !important; }
+
+/* The XAI decision card supplies its own panel chrome, so the wrapper around
+   it must not double up on background, border or padding. */
+.leaflet-container .xai-decision-popup .leaflet-popup-content-wrapper {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.leaflet-container .xai-decision-popup .leaflet-popup-tip { display: none; }

@@ -25,8 +25,8 @@ def get_dashboard_stats(db: SessionDep, current_user: CurrentUser):
     ).scalar()
 
     from app.db.models import Trip
-    total_optimizations = db.query(func.count(Trip.id)).scalar()
-
+    # Single aggregation query — trip_count replaces a previous duplicate
+    # COUNT(Trip.id) scalar that fired before this query.
     avg_savings, total_fuel, total_co2, trip_count = db.query(
         func.avg(Trip.distance_saved_km),
         func.coalesce(func.sum(Trip.fuel_saved_l), 0.0),
@@ -42,7 +42,7 @@ def get_dashboard_stats(db: SessionDep, current_user: CurrentUser):
         "total_providers": total_providers,
         "total_vehicles": total_vehicles,
         "total_requests": total_requests,
-        "total_optimizations": total_optimizations,
+        "total_optimizations": trip_count,
         "avg_route_savings": round((avg_savings or 0.0), 2),
         "fuel_saved": round((total_fuel or 0.0), 2),
         "co2_reduction": round((total_co2 or 0.0), 2),

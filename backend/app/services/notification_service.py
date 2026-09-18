@@ -1,7 +1,7 @@
 import logging
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
-from sqlalchemy import func, String
+from sqlalchemy import func, String, case
 from sqlalchemy.orm import Session
 from app.db.models import SystemNotification
 
@@ -101,21 +101,31 @@ class NotificationService:
         }
 
     def get_stats(self, db: Session) -> Dict[str, int]:
-        total = db.query(SystemNotification).count()
-        unread = db.query(SystemNotification).filter(SystemNotification.is_read == False).count()
-        
+        # Single aggregation query instead of 5 separate COUNT round-trips.
         today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-        today_count = db.query(SystemNotification).filter(SystemNotification.created_at >= today_start).count()
-        
-        warnings = db.query(SystemNotification).filter(func.lower(SystemNotification.category) == "warning").count()
-        errors = db.query(SystemNotification).filter(func.lower(SystemNotification.category) == "error").count()
+
+        row = db.query(
+            func.count(SystemNotification.id).label("total"),
+            func.sum(
+                case((SystemNotification.is_read == False, 1), else_=0)
+            ).label("unread"),
+            func.sum(
+                case((SystemNotification.created_at >= today_start, 1), else_=0)
+            ).label("today"),
+            func.sum(
+                case((func.lower(SystemNotification.category) == "warning", 1), else_=0)
+            ).label("warnings"),
+            func.sum(
+                case((func.lower(SystemNotification.category) == "error", 1), else_=0)
+            ).label("errors"),
+        ).one()
 
         return {
-            "total_notifications": total,
-            "unread_notifications": unread,
-            "today_activities": today_count,
-            "warnings_count": warnings,
-            "errors_count": errors,
+            "total_notifications": row.total or 0,
+            "unread_notifications": row.unread or 0,
+            "today_activities": row.today or 0,
+            "warnings_count": row.warnings or 0,
+            "errors_count": row.errors or 0,
         }
 
     def get_activity_timeline(self, db: Session, limit: int = 100) -> List[Dict[str, Any]]:

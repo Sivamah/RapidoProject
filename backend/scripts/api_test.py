@@ -107,3 +107,5 @@ if fails:
     for label, code, status, detail in results:
         if status == "FAIL":
             print(f"  {label} -> {code}: {detail}")
+
+sys.exit(1 if fails else 0)

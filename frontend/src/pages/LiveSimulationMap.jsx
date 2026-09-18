@@ -1,14 +1,20 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Play, Pause, Square, RotateCcw, Radio, Search, X } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
 import LiveMapContainer from '../components/map/LiveMapContainer';
-import StatisticsPanel from '../components/map/StatisticsPanel';
-import PageHeader from '../components/ui/PageHeader';
+import KpiBar from '../components/map/KpiBar';
+import MapFilterPanel from '../components/map/MapFilterPanel';
+import TripDetailsPanel from '../components/map/TripDetailsPanel';
+import ActiveTripsPanel from '../components/map/ActiveTripsPanel';
+import { normalizeXaiHighlight } from '../utils/xaiMap';
+import useOperationalNetwork from '../hooks/useOperationalNetwork';
 
 export default function LiveSimulationMap() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const xaiParam = searchParams.get('xai');
   // ── State ──────────────────────────────────────────────────────────────────
   const [queue, setQueue] = useState([]);
   const [status, setStatus] = useState({
@@ -20,8 +26,13 @@ export default function LiveSimulationMap() {
   });
 
   const [selectedRequest, setSelectedRequest] = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(null);
+  const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(true);
+
+  const [xaiHighlight, setXaiHighlight] = useState(null);
+  const [xaiLoading, setXaiLoading] = useState(false);
+  const [xaiError, setXaiError] = useState(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('All');
@@ -30,26 +41,96 @@ export default function LiveSimulationMap() {
 
   const pollRef = useRef(null);
 
+  // ── XAI Focus (from "View on Map" on the XAI dashboard) ─────────────────────
+  useEffect(() => {
+    if (!xaiParam) {
+      setXaiHighlight(null);
+      setXaiLoading(false);
+      setXaiError(null);
+      return;
+    }
+    let cancelled = false;
+    setXaiLoading(true);
+    setXaiError(null);
+    api.get(`/xai/explanations/${xaiParam}`, { noCache: true })
+      .then((res) => {
+        if (cancelled) return;
+        const normalized = normalizeXaiHighlight(res.data);
+        setXaiHighlight(normalized);
+        setSelectedRequest(null);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setXaiError(`Could not load XAI explanation for request #${xaiParam}.`);
+        setXaiHighlight(null);
+      })
+      .finally(() => {
+        if (!cancelled) setXaiLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [xaiParam]);
+
+  const clearXaiFocus = useCallback(() => {
+    setSearchParams({}, { replace: true });
+    setXaiHighlight(null);
+    setXaiError(null);
+  }, [setSearchParams]);
+
+  // Selecting a queue/trip marker clears the XAI deep-link focus so the right
+  // panel switches to the tapped trip.
+  const handleSelectRequest = useCallback((req) => {
+    setSelectedRequest(req);
+    setSelectedVehicle(null);
+    setXaiHighlight(null);
+    setXaiError(null);
+    setPanelOpen(true);
+    if (xaiParam) setSearchParams({}, { replace: true });
+  }, [xaiParam, setSearchParams]);
+
+  const handleSelectVehicle = useCallback((veh) => {
+    setSelectedVehicle(veh);
+    setSelectedRequest(null);
+    setXaiHighlight(null);
+    setXaiError(null);
+    setPanelOpen(true);
+    if (xaiParam) setSearchParams({}, { replace: true });
+  }, [xaiParam, setSearchParams]);
+
   // ── Data Fetching ──────────────────────────────────────────────────────────
+  // The operational network (fleet positions + active trips + pending queue)
+  // comes from the shared hook; this page only needs the engine status on top
+  // of that. Previously the map fetched the queue alone, which is why a live
+  // operations view of a 115-vehicle fleet rendered five markers.
+  const {
+    vehicles, activeTrips, queue: netQueue, refresh: refreshNetwork,
+  } = useOperationalNetwork({ intervalMs: 5000 });
+
+  useEffect(() => { setQueue(netQueue); }, [netQueue]);
+
   const fetchLiveData = useCallback(async () => {
     try {
-      const [statusRes, queueRes] = await Promise.all([
-        api.get('/simulation/status'),
-        api.get('/simulation/queue?limit=200'),
-      ]);
+      const statusRes = await api.get('/simulation/status');
       setStatus(statusRes.data);
-      setQueue(queueRes.data.items || []);
-      setLastUpdated(new Date());
     } catch {
       // Silently ignore poll errors
     }
-  }, []);
+    refreshNetwork();
+  }, [refreshNetwork]);
 
   useEffect(() => {
-    fetchLiveData();
-    pollRef.current = setInterval(() => { if (document.visibilityState === 'visible') fetchLiveData(); }, 2500);
-    return () => clearInterval(pollRef.current);
-  }, [fetchLiveData]);
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const res = await api.get('/simulation/status');
+        if (!cancelled) setStatus(res.data);
+      } catch { /* poll errors are non-fatal */ }
+    };
+    tick();
+    pollRef.current = setInterval(() => {
+      if (document.visibilityState === 'visible') tick();
+    }, 5000);
+    return () => { cancelled = true; clearInterval(pollRef.current); };
+  }, []);
 
   // ── Controls Handlers ──────────────────────────────────────────────────────
   const handleStartResume = async () => {
@@ -65,18 +146,6 @@ export default function LiveSimulationMap() {
     } finally { setLoading(false); }
   };
 
-  const handlePause = async () => {
-    setLoading(true);
-    try {
-      const res = await api.post('/simulation/pause');
-      setStatus(res.data);
-      toast.success('Simulation Paused');
-      fetchLiveData();
-    } catch {
-      toast.error('Failed to pause simulation');
-    } finally { setLoading(false); }
-  };
-
   const handleStop = async () => {
     setLoading(true);
     try {
@@ -89,21 +158,6 @@ export default function LiveSimulationMap() {
     } finally { setLoading(false); }
   };
 
-  const handleClear = async () => {
-    if (!confirm('Clear all pending requests from the queue?')) return;
-    setLoading(true);
-    try {
-      const res = await api.post('/simulation/clear-queue');
-      setStatus(res.data);
-      setQueue([]);
-      setSelectedRequest(null);
-      toast.success('Queue Cleared');
-      fetchLiveData();
-    } catch {
-      toast.error('Failed to clear queue');
-    } finally { setLoading(false); }
-  };
-
   // ── Provider Options for Filter Dropdown ───────────────────────────────────
   const providerOptions = useMemo(() => {
     const set = new Set();
@@ -112,35 +166,32 @@ export default function LiveSimulationMap() {
   }, [queue]);
 
   // ── Filtered Requests Computation ──────────────────────────────────────────
+  // Requests being shown by the XAI highlight overlay are excluded from the
+  // live-queue markers so they are not drawn twice.
+  const highlightRequestIds = useMemo(
+    () => new Set(xaiHighlight?.requestIds || []),
+    [xaiHighlight],
+  );
+
   const filteredRequests = useMemo(() => {
-    return queue.filter(item => {
-      const searchLower = searchTerm.toLowerCase();
-      const matchesSearch = !searchTerm || (
-        String(item.id).includes(searchLower) ||
-        (item.provider_name && item.provider_name.toLowerCase().includes(searchLower)) ||
-        (item.pickup_address && item.pickup_address.toLowerCase().includes(searchLower)) ||
-        (item.drop_address && item.drop_address.toLowerCase().includes(searchLower))
-      );
+    return queue
+      .filter(item => !highlightRequestIds.has(item.id))
+      .filter(item => {
+        const searchLower = searchTerm.toLowerCase();
+        const matchesSearch = !searchTerm || (
+          String(item.id).includes(searchLower) ||
+          (item.provider_name && item.provider_name.toLowerCase().includes(searchLower)) ||
+          (item.pickup_address && item.pickup_address.toLowerCase().includes(searchLower)) ||
+          (item.drop_address && item.drop_address.toLowerCase().includes(searchLower))
+        );
 
-      const matchesType = filterType === 'All' || item.request_type?.toLowerCase() === filterType.toLowerCase();
-      const matchesProvider = filterProvider === 'All' || item.provider_name === filterProvider;
-      const matchesPriority = filterPriority === 'All' || item.priority === filterPriority;
+        const matchesType = filterType === 'All' || item.request_type?.toLowerCase() === filterType.toLowerCase();
+        const matchesProvider = filterProvider === 'All' || item.provider_name === filterProvider;
+        const matchesPriority = filterPriority === 'All' || item.priority === filterPriority;
 
-      return matchesSearch && matchesType && matchesProvider && matchesPriority;
-    });
-  }, [queue, searchTerm, filterType, filterProvider, filterPriority]);
-
-  // ── Computed Statistics for Overlaid Panel ─────────────────────────────────
-  const stats = useMemo(() => {
-    let ride = 0, food = 0, parcel = 0;
-    filteredRequests.forEach(r => {
-      const t = r.request_type?.toLowerCase();
-      if (t === 'ride') ride++;
-      else if (t === 'food') food++;
-      else if (t === 'parcel') parcel++;
-    });
-    return { active: filteredRequests.length, ride, food, parcel };
-  }, [filteredRequests]);
+        return matchesSearch && matchesType && matchesProvider && matchesPriority;
+      });
+  }, [queue, searchTerm, filterType, filterProvider, filterPriority, highlightRequestIds]);
 
   const handleResetFilters = () => {
     setSearchTerm('');
@@ -150,139 +201,96 @@ export default function LiveSimulationMap() {
   };
 
   const hasFilters = searchTerm || filterType !== 'All' || filterProvider !== 'All' || filterPriority !== 'All';
+  const hasSelection = Boolean(selectedRequest || selectedVehicle || xaiHighlight || xaiLoading || xaiError);
   const engineActive = status.running && !status.paused;
 
   return (
-    <div className="space-y-6 max-w-[1500px] mx-auto">
-      <PageHeader
-        eyebrow="Live Operations"
-        live
-        title="Coimbatore Live Network"
-        description="Real-time request telemetry across the city — pickup markers, queue composition and engine state."
-        actions={
-          <div className="flex items-center gap-2.5">
-            <div className="chip">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className={`absolute inline-flex h-full w-full rounded-full animate-ping ${engineActive ? 'bg-brand-success' : 'bg-brand-text-muted'}`} />
-                <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${engineActive ? 'bg-brand-success' : 'bg-brand-text-muted'}`} />
-              </span>
-              {engineActive ? 'Engine running' : status.paused ? 'Paused' : 'Stopped'}
-            </div>
-
-            {engineActive ? (
-              <button onClick={handlePause} disabled={loading} className="btn-glass !text-brand-warning">
-                <Pause className="h-4 w-4" /> Pause
-              </button>
-            ) : (
-              <button onClick={handleStartResume} disabled={loading} className="btn-primary">
-                <Play className="h-4 w-4" /> {status.paused ? 'Resume' : 'Start Engine'}
-              </button>
-            )}
-
-            <button
-              onClick={handleStop}
-              disabled={loading || (!status.running && !status.paused)}
-              className="btn-glass !text-brand-danger disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <Square className="h-3.5 w-3.5" /> Stop
-            </button>
-
-            <button
-              onClick={handleClear}
-              disabled={loading}
-              className="btn-glass disabled:opacity-40 disabled:cursor-not-allowed"
-              title="Clear Queue"
-            >
-              <RotateCcw className="h-3.5 w-3.5" /> Clear
-            </button>
-          </div>
-        }
-      />
-
-      {/* ── Filter bar ───────────────────────────────────────────────────── */}
+    <div className="h-full flex flex-col">
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
-        className="glass-panel rounded-[20px] p-4 flex flex-col lg:flex-row gap-3 lg:items-center"
+        initial={{ opacity: 0, scale: 0.992 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="relative flex-1 min-h-0 rounded-[28px] overflow-hidden glass-panel-strong border border-white/[0.08]"
       >
-        <div className="relative flex-1 min-w-[240px]">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-text-muted pointer-events-none" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search request ID, provider, address…"
-            className="input-glass !pl-11"
+        <LiveMapContainer
+          mode="operations"
+          requests={filteredRequests}
+          vehicles={vehicles}
+          activeTrips={activeTrips}
+          selectedRequest={selectedRequest}
+          onSelectRequest={handleSelectRequest}
+          onClosePopup={() => setSelectedRequest(null)}
+          selectedVehicleId={selectedVehicle?.vehicle_id ?? null}
+          onSelectVehicle={handleSelectVehicle}
+          xaiHighlight={xaiHighlight}
+          className="absolute inset-0"
+        />
+
+        {/* Floating top control bar: engine state, Start/Stop, search */}
+        <div className="absolute top-4 inset-x-0 z-30 flex justify-center px-4 pointer-events-none">
+          <KpiBar
+            status={status}
+            engineActive={engineActive}
+            loading={loading}
+            onStartResume={handleStartResume}
+            onStop={handleStop}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="select-glass">
-            <option value="All">All Types</option>
-            <option value="Ride">Ride</option>
-            <option value="Food">Food</option>
-            <option value="Parcel">Parcel</option>
-          </select>
+        {/* Active trips — manual "Complete Trip" action. Nothing on the map
+            itself is clickable to select a Trip (only queue/vehicle
+            markers are), so this always-visible list is the minimal way to
+            reach the existing completion endpoint. */}
+        {activeTrips.length > 0 && (
+          <div className="absolute left-4 bottom-6 z-30 hidden md:block pointer-events-none">
+            <ActiveTripsPanel trips={activeTrips} onCompleted={refreshNetwork} />
+          </div>
+        )}
 
-          <select value={filterProvider} onChange={(e) => setFilterProvider(e.target.value)} className="select-glass max-w-[160px]">
-            <option value="All">All Providers</option>
-            {providerOptions.map((p) => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-
-          <select value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)} className="select-glass">
-            <option value="All">All Priority</option>
-            <option value="High">High</option>
-            <option value="Medium">Medium</option>
-            <option value="Low">Low</option>
-          </select>
-
-          {hasFilters && (
-            <button onClick={handleResetFilters} className="btn-ghost !text-brand-primary">
-              <X className="h-3.5 w-3.5" /> Reset
-            </button>
-          )}
-        </div>
-      </motion.div>
-
-      {/* ── Main Map with floating telemetry ─────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
-        className="glass-panel-strong rounded-[30px] p-2"
-      >
-        <div className="relative rounded-[24px] overflow-hidden h-[62vh] min-h-[520px]">
-          <LiveMapContainer
-            requests={filteredRequests}
-            selectedRequest={selectedRequest}
-            onSelectRequest={(req) => setSelectedRequest(req)}
-            onClosePopup={() => setSelectedRequest(null)}
-            className="relative w-full h-full rounded-[24px] overflow-hidden"
+        {/* Compact left filter panel */}
+        <div className="absolute left-4 top-1/2 -translate-y-1/2 z-30 hidden sm:block pointer-events-none">
+          <MapFilterPanel
+            filterType={filterType}
+            onFilterTypeChange={setFilterType}
+            filterProvider={filterProvider}
+            onFilterProviderChange={setFilterProvider}
+            filterPriority={filterPriority}
+            onFilterPriorityChange={setFilterPriority}
+            providerOptions={providerOptions}
+            hasFilters={hasFilters}
+            onResetFilters={handleResetFilters}
           />
-
-          {/* Floating telemetry (top-left) */}
-          <div className="absolute top-5 left-5 z-20 w-[300px] sm:w-[340px] pointer-events-auto">
-            <StatisticsPanel stats={stats} lastUpdated={lastUpdated} />
-          </div>
-
-          {/* Engine state (top-right) */}
-          <div className="absolute top-5 right-5 z-20 hidden sm:flex flex-col items-end gap-2">
-            <div className="glass-panel-strong rounded-2xl px-4 py-3 backdrop-blur-xl">
-              <div className="flex items-center gap-2.5">
-                <Radio className={`h-4 w-4 ${engineActive ? 'text-brand-success' : 'text-brand-text-muted'}`} />
-                <span className="text-[11px] font-bold tracking-[0.16em] uppercase text-white">Simulation Engine</span>
-              </div>
-              <p className="text-[11px] text-brand-text-secondary mt-1">
-                {status.status_text || (engineActive ? 'Running' : 'Stopped')} · {status.total_generated || 0} generated
-              </p>
-            </div>
-          </div>
-
-          <div className="absolute inset-0 pointer-events-none rounded-[24px] shadow-[inset_0_0_120px_rgba(5,8,22,0.55)] border border-white/[0.04]" />
         </div>
+
+        {/* Right inspector — only mounted when something is actually selected,
+            so the map is never permanently squeezed by an empty panel. */}
+        {hasSelection && panelOpen && (
+          <div className="absolute right-4 top-20 z-30 hidden md:block pointer-events-none">
+            <TripDetailsPanel
+              selectedRequest={selectedRequest}
+              selectedVehicle={selectedVehicle}
+              xaiHighlight={xaiHighlight}
+              xaiLoading={xaiLoading}
+              xaiError={xaiError}
+              onCloseTrip={() => setSelectedRequest(null)}
+              onCloseVehicle={() => setSelectedVehicle(null)}
+              onDismissXai={clearXaiFocus}
+            />
+          </div>
+        )}
+        {hasSelection && !panelOpen && (
+          <button
+            onClick={() => setPanelOpen(true)}
+            className="absolute right-4 top-20 z-30 pointer-events-auto bg-[#0A0F1A]/80 backdrop-blur-xl border border-white/10 rounded-xl px-3 py-2 text-[11px] text-white/70 hover:text-white hover:border-[#00F0FF]/40 transition-colors"
+          >
+            Show details
+          </button>
+        )}
+
+        {/* Soft inner vignette so overlays sit on a calm backdrop */}
+        <div className="absolute inset-0 pointer-events-none rounded-[28px] shadow-[inset_0_0_120px_rgba(5,8,22,0.55)] border border-white/[0.04]" />
       </motion.div>
     </div>
   );

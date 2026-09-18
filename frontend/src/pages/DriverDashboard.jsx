@@ -32,16 +32,28 @@ export default function DriverDashboard() {
   const [assignmentHistory, setAssignmentHistory] = useState([]);
 
   const pollRef = useRef(null);
+  // Debounce timer for search — prevents a full 7-endpoint refetch (and
+  // interval restart) on every keystroke.
+  const searchDebounceRef = useRef(null);
+  // The "effective" search value that actually drives API calls.
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // When the raw search input changes, wait 400 ms before applying it.
+  useEffect(() => {
+    clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(searchDebounceRef.current);
+  }, [search]);
 
   const fetchData = useCallback(async () => {
     try {
       const dParams = new URLSearchParams();
-      if (search) dParams.append('search', search);
+      if (debouncedSearch) dParams.append('search', debouncedSearch);
       if (filters.provider_id !== 'All') dParams.append('provider_id', filters.provider_id);
       if (filters.driver_status !== 'All') dParams.append('status', filters.driver_status);
 
       const vParams = new URLSearchParams();
-      if (search) vParams.append('search', search);
+      if (debouncedSearch) vParams.append('search', debouncedSearch);
       if (filters.provider_id !== 'All') vParams.append('provider_id', filters.provider_id);
       if (filters.vehicle_type !== 'All') vParams.append('vehicle_type', filters.vehicle_type);
 
@@ -65,11 +77,12 @@ export default function DriverDashboard() {
     } catch (err) {
       console.error('Failed to fetch Driver & Vehicle data:', err);
     }
-  }, [search, filters]);
+  }, [debouncedSearch, filters]);
 
   useEffect(() => {
     fetchData();
-    pollRef.current = setInterval(() => { if (document.visibilityState === 'visible') fetchData(); }, 2500);
+    // 5 s polling — fleet data changes at simulation speed, not real-time GPS.
+    pollRef.current = setInterval(() => { if (document.visibilityState === 'visible') fetchData(); }, 5000);
     return () => clearInterval(pollRef.current);
   }, [fetchData]);
 
